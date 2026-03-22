@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============= ROLES & PERMISSIONS =============
+
+model Role {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  description String?
+
+  userRoles UserRole[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String  @id @default(cuid())
+  userId    String
+  roleId    String
+  
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// ============= USER PROFILE =============
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile   Profile?
+  userRoles UserRole[]
+  projects  Project[]
+  projectPermissions ProjectPermission[]
+  projectFiles ProjectFile[]
+  messages  ContactMessage[]
+
+  @@map("users")
+}
+
+model Profile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  fullName        String?
+  headline        String?
+  bio             String?
+  avatarUrl       String?
+  email           String?
+  phone           String?
+  githubUrl       String?
+  linkedinUrl     String?
+  facebookUrl     String?
+  websiteUrl      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// ============= PROJECTS =============
+
+model Project {
+  id                  String   @id @default(cuid())
+  slug                String   @unique
+  title               String
+  shortDescription    String
+  content             String   @db.Text
+  subjectName         String   // Tên môn học (e.g., "Web Development")
+  semester            String   // Kỳ học (e.g., "Fall 2024")
+  techStack           String   // JSON string hoặc comma-separated
+  githubUrl           String?
+  demoUrl             String?
+  thumbnailUrl        String?
+  coverImageUrl       String?
+  
+  status              ProjectStatus @default(DRAFT) // DRAFT, PUBLISHED, ARCHIVED
+  visibility          Visibility @default(PRIVATE) // PUBLIC, PRIVATE, SHARED
+  
+  authorId            String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  publishedAt         DateTime?
+
+  author              User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  files               ProjectFile[]
+  images              ProjectImage[]
+  permissions         ProjectPermission[]
+  projectTags         ProjectTag[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([visibility])
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  SHARED
+}
+
+// ============= PROJECT FILES & IMAGES =============
+
+model ProjectFile {
+  id          String   @id @default(cuid())
+  projectId   String
+  fileName    String
+  filePath    String   // Supabase storage path
+  fileType    String   // e.g., "pdf", "zip", "doc"
+  mimeType    String
+  sizeBytes   Int
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@map("project_files")
+}
+
+model ProjectImage {
+  id          String   @id @default(cuid())
+  projectId   String
+  imageUrl    String   // Supabase storage URL
+  altText     String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_images")
+}
+
+// ============= PROJECT PERMISSIONS =============
+
+model ProjectPermission {
+  id              String   @id @default(cuid())
+  projectId       String
+  userId          String
+  permissionType  PermissionType @default(VIEW) // VIEW, EDIT
+  createdAt       DateTime @default(now())
+
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_permissions")
+}
+
+enum PermissionType {
+  VIEW
+  EDIT
+}
+
+// ============= TAGS =============
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+
+  projectTags ProjectTag[]
+
+  @@map("tags")
+}
+
+model ProjectTag {
+  id          String   @id @default(cuid())
+  projectId   String
+  tagId       String
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, tagId])
+  @@index([projectId])
+  @@map("project_tags")
+}
+
+// ============= CONTACT MESSAGES =============
+
+model ContactMessage {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  subject     String
+  message     String  @db.Text
+  userId      String?
+  isRead      Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([isRead])
+  @@map("contact_messages")
+}
