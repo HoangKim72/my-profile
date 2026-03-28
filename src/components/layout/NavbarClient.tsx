@@ -2,21 +2,74 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LayoutDashboard, LogOut, Menu, UserCircle2, X } from "lucide-react";
 import { NAV_LINKS, SITE_NAME } from "@/lib/utils/constants";
 import { createClient } from "@/lib/supabase/client";
 import type { AuthUser } from "@/types";
 
 interface NavbarClientProps {
-  user: AuthUser | null;
+  initialUser?: AuthUser | null;
 }
 
-export function NavbarClient({ user }: NavbarClientProps) {
+function mapAuthUser(email: string | undefined, id: string): AuthUser {
+  return {
+    id,
+    email: email ?? `${id}@users.local`,
+    role: "viewer",
+  };
+}
+
+export function NavbarClient({ initialUser = null }: NavbarClientProps) {
   const router = useRouter();
+  const [supabase] = useState(() => createClient());
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const supabase = createClient();
+  const [user, setUser] = useState<AuthUser | null>(initialUser);
+  const [isAuthReady, setIsAuthReady] = useState(Boolean(initialUser));
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncUser = async () => {
+      const {
+        data: { user: supabaseUser },
+      } = await supabase.auth.getUser();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setUser(
+        supabaseUser
+          ? mapAuthUser(supabaseUser.email, supabaseUser.id)
+          : null,
+      );
+      setIsAuthReady(true);
+    };
+
+    void syncUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setUser(
+        session?.user
+          ? mapAuthUser(session.user.email, session.user.id)
+          : null,
+      );
+      setIsAuthReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   const displayName = user?.profile?.fullName || user?.email || "Account";
 
@@ -54,7 +107,9 @@ export function NavbarClient({ user }: NavbarClientProps) {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            {user ? (
+            {!isAuthReady ? (
+              <div className="h-10 w-36 rounded-lg border border-gray-200 dark:border-gray-800" />
+            ) : user ? (
               <>
                 <div className="flex items-center gap-2 rounded-full border border-gray-200 px-3 py-2 text-sm dark:border-gray-800">
                   <UserCircle2 size={18} className="text-gray-500" />
@@ -118,7 +173,11 @@ export function NavbarClient({ user }: NavbarClientProps) {
             ))}
 
             <div className="border-t border-gray-200 pt-3 dark:border-gray-800">
-              {user ? (
+              {!isAuthReady ? (
+                <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+                  Loading account...
+                </div>
+              ) : user ? (
                 <div className="space-y-2">
                   <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
                     Signed in as <span className="font-medium">{displayName}</span>
