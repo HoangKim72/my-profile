@@ -1,41 +1,36 @@
-// app/(auth)/login/page.tsx
-
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import {
+  loginUser,
+} from "@/actions/auth";
+import { initialAuthActionState } from "@/lib/validators/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const formStartedAtInputRef = useRef<HTMLInputElement>(null);
+  const [state, formAction, isPending] = useActionState(
+    loginUser,
+    initialAuthActionState,
+  );
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
 
-    try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    router.push("/dashboard");
+    router.refresh();
+  }, [router, state.success]);
 
-      if (signInError) {
-        setError(signInError.message);
-        return;
-      }
-
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  const markFormInteraction = () => {
+    if (
+      formStartedAtInputRef.current &&
+      formStartedAtInputRef.current.value === "0"
+    ) {
+      formStartedAtInputRef.current.value = String(Date.now());
     }
   };
 
@@ -48,13 +43,31 @@ export default function LoginPage() {
             Sign in to your account to access your dashboard
           </p>
 
-          {error && (
+          {state.error && (
             <div className="mb-6 p-4 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded-lg">
-              {error}
+              {state.error}
             </div>
           )}
 
-          <form onSubmit={handleSignIn} className="space-y-6">
+          <form action={formAction} className="space-y-6">
+            <input
+              type="hidden"
+              name="formStartedAt"
+              defaultValue="0"
+              ref={formStartedAtInputRef}
+            />
+
+            <div className="hidden" aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2">
                 Email
@@ -62,10 +75,11 @@ export default function LoginPage() {
               <input
                 type="email"
                 id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
                 placeholder="you@example.com"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="email"
+                onFocus={markFormInteraction}
                 required
               />
             </div>
@@ -80,25 +94,26 @@ export default function LoginPage() {
               <input
                 type="password"
                 id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                name="password"
                 placeholder="••••••••"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="current-password"
+                onFocus={markFormInteraction}
                 required
               />
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isPending}
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isPending ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
           <p className="text-center text-gray-600 dark:text-gray-400 mt-6">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/register"
               className="text-blue-600 hover:text-blue-700 font-medium"

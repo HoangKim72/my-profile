@@ -37,8 +37,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ### 4. Setup database
 
 ```bash
-npx prisma migrate deploy
-npx prisma db seed
+npm run prisma:deploy
+npm run prisma:seed
 ```
 
 ### 5. Chạy local
@@ -163,7 +163,7 @@ SELECT * FROM user_roles WHERE role_id = (SELECT id FROM roles WHERE name = 'adm
 ```
 Solution: Check DATABASE_URL and DIRECT_URL in .env.local
 - Go to Supabase → Settings → Database
-- Use Prisma connection string
+- Use the pooled Prisma URL for DATABASE_URL and the 5432 session/direct URL for DIRECT_URL
 ```
 
 **Problem:** Auth callback fails
@@ -171,7 +171,8 @@ Solution: Check DATABASE_URL and DIRECT_URL in .env.local
 ```
 Solution: Add URL to Supabase Auth Redirect URLs
 - Go to Supabase → Auth → Redirect URLs
-- Add: http://localhost:3000/dashboard
+- Add: http://localhost:3000/auth/callback
+- Add: http://localhost:3000/auth/callback?next=/dashboard
 ```
 
 ---

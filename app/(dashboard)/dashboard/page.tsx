@@ -48,7 +48,7 @@ export default async function DashboardPage() {
           Welcome, {user.profile?.fullName || user.email}!
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          You're logged in to your portfolio dashboard. Use the sidebar to
+          You&apos;re logged in to your portfolio dashboard. Use the sidebar to
           navigate to different sections.
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">

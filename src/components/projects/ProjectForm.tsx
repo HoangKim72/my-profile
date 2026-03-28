@@ -1,300 +1,366 @@
-// src/components/projects/ProjectForm.tsx
-
 "use client";
 
-import { useState } from "react";
+import {
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type InputHTMLAttributes,
+} from "react";
+import JSZip from "jszip";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  createProject,
-  updateProject,
-  publishProject,
-} from "@/actions/projects";
-import { Project } from "@/types";
+  Archive,
+  Download,
+  FolderOpen,
+  Loader,
+  UploadCloud,
+} from "lucide-react";
+import { createProject, updateProject } from "@/actions/projects";
+import {
+  formatFileSize,
+  slugifyProjectTitle,
+  validateProjectArchiveCandidate,
+} from "@/lib/projects/archive";
+import type { Project } from "@/types";
 
-interface ProjectFormProps {
-  project?: Project;
+type ProjectFormProject = Pick<
+  Project,
+  "id" | "title" | "slug" | "githubUrl" | "demoUrl"
+>;
+
+interface ProjectArchiveSummary {
+  fileName: string;
+  sizeBytes: number;
+  createdAt: string;
 }
 
-export function ProjectForm({ project }: ProjectFormProps) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: project?.title || "",
-    slug: project?.slug || "",
-    shortDescription: project?.shortDescription || "",
-    content: project?.content || "",
-    subjectName: project?.subjectName || "",
-    semester: project?.semester || "",
-    techStack: project?.techStack || "",
-    githubUrl: project?.githubUrl || "",
-    demoUrl: project?.demoUrl || "",
-    visibility: project?.visibility || "PRIVATE",
-    status: project?.status || "DRAFT",
-  });
+interface ProjectFormProps {
+  project?: ProjectFormProject;
+  existingArchive?: ProjectArchiveSummary | null;
+}
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+const FOLDER_PICKER_ATTRIBUTES = {
+  directory: "",
+  multiple: true,
+  webkitdirectory: "",
+} as InputHTMLAttributes<HTMLInputElement>;
+
+export function ProjectForm({
+  project,
+  existingArchive = null,
+}: ProjectFormProps) {
+  const router = useRouter();
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [title, setTitle] = useState(project?.title ?? "");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFolderName, setSelectedFolderName] = useState<string | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [isPreparingArchive, setIsPreparingArchive] = useState(false);
+
+  const totalSelectedBytes = selectedFiles.reduce(
+    (total, file) => total + file.size,
+    0,
+  );
+  const isBusy = isSavingProject || isPreparingArchive;
+
+  const handleFolderChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+
+    setSelectedFiles(files);
+    setSelectedFolderName(files.length > 0 ? getRootFolderName(files) : null);
+    setError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      setError("Vui lòng nhập tên project trước khi lưu.");
+      return;
+    }
+
+    if (!project && selectedFiles.length === 0) {
+      setError("Vui lòng chọn thư mục cần chia sẻ.");
+      return;
+    }
+
     setError(null);
+    setIsSavingProject(true);
 
     try {
-      let result;
-      if (project) {
-        result = await updateProject(project.id, formData);
-      } else {
-        result = await createProject(formData);
+      const payload = buildProjectPayload(trimmedTitle, project);
+      const result = project
+        ? await updateProject(project.id, payload)
+        : await createProject(payload);
+
+      if (!result.success || !result.project) {
+        throw new Error(result.error || "Không thể lưu project.");
       }
 
-      if (result.success) {
-        router.push("/dashboard/projects");
-        router.refresh();
-      } else {
-        setError(result.error || "Failed to save project");
+      if (selectedFiles.length > 0) {
+        setIsPreparingArchive(true);
+
+        const archive = await createProjectArchive(selectedFiles, trimmedTitle);
+        const uploadFormData = new FormData();
+        uploadFormData.append(
+          "archive",
+          archive.archiveFile,
+          archive.archiveFile.name,
+        );
+        uploadFormData.append("folderName", archive.folderName);
+
+        const uploadResponse = await fetch(
+          `/api/projects/${result.project.id}/archive`,
+          {
+            method: "POST",
+            body: uploadFormData,
+          },
+        );
+
+        const uploadResult = await readJsonResponse(uploadResponse);
+
+        if (!uploadResponse.ok) {
+          throw new Error(
+            uploadResult?.error || "Không thể upload thư mục đã chọn.",
+          );
+        }
       }
-    } catch (err: any) {
-      setError(err.message);
+
+      router.push("/dashboard/projects");
+      router.refresh();
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Không thể lưu project lúc này.",
+      );
     } finally {
-      setIsLoading(false);
+      setIsSavingProject(false);
+      setIsPreparingArchive(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="card p-8 space-y-6">
+    <form onSubmit={handleSubmit} className="card space-y-8 p-8">
       {error && (
-        <div className="p-4 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded-lg">
+        <div className="rounded-lg bg-red-100 p-4 text-red-800 dark:bg-red-900 dark:text-red-100">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Title */}
+      <section className="space-y-3">
         <div>
-          <label htmlFor="title" className="block text-sm font-medium mb-2">
-            Project Title *
+          <h2 className="text-2xl font-bold">Folder Share Project</h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Mỗi project tương ứng với một thư mục chia sẻ. Bạn chỉ cần đặt tên
+            project và chọn nguyên folder, hệ thống sẽ tự đóng gói thành file
+            ZIP để người dùng tải về.
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="title" className="mb-2 block text-sm font-medium">
+            Project Name *
           </label>
           <input
-            type="text"
             id="title"
             name="title"
-            value={formData.title}
-            onChange={handleChange}
-            placeholder="My amazing project"
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        {/* Slug */}
-        <div>
-          <label htmlFor="slug" className="block text-sm font-medium mb-2">
-            URL Slug *
-          </label>
-          <input
             type="text"
-            id="slug"
-            name="slug"
-            value={formData.slug}
-            onChange={handleChange}
-            placeholder="my-amazing-project"
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Ví dụ: Tài liệu môn Web nâng cao"
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800"
             required
           />
         </div>
+      </section>
 
-        {/* Subject */}
-        <div>
-          <label
-            htmlFor="subjectName"
-            className="block text-sm font-medium mb-2"
-          >
-            Subject Name *
-          </label>
+      <section className="space-y-4 border-t border-gray-200 pt-8 dark:border-gray-800">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-blue-100 p-3 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
+            <FolderOpen size={20} />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">Shared Folder</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Chọn nguyên folder môn học hoặc tài liệu cần chia sẻ. Nếu đang sửa
+              project mà không chọn folder mới, hệ thống sẽ giữ nguyên file đang
+              có.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-dashed border-gray-300 p-6 dark:border-gray-700">
           <input
-            type="text"
-            id="subjectName"
-            name="subjectName"
-            value={formData.subjectName}
-            onChange={handleChange}
-            placeholder="Web Development"
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            {...FOLDER_PICKER_ATTRIBUTES}
+            ref={folderInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFolderChange}
           />
+
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                <Archive size={14} />
+                Tự động nén thành ZIP khi lưu
+              </div>
+              <h4 className="text-lg font-semibold">
+                {selectedFolderName || "Chưa chọn thư mục nào"}
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedFiles.length > 0
+                  ? `${selectedFiles.length} file • ${formatFileSize(totalSelectedBytes)} trước khi nén`
+                  : "Hệ thống giữ cấu trúc thư mục bên trong file ZIP để người dùng tải về đúng bố cục."}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => folderInputRef.current?.click()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              <UploadCloud size={18} />
+              {selectedFiles.length > 0 ? "Chọn lại thư mục" : "Chọn thư mục"}
+            </button>
+          </div>
         </div>
 
-        {/* Semester */}
-        <div>
-          <label htmlFor="semester" className="block text-sm font-medium mb-2">
-            Semester *
-          </label>
-          <input
-            type="text"
-            id="semester"
-            name="semester"
-            value={formData.semester}
-            onChange={handleChange}
-            placeholder="Fall 2024"
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
+        {existingArchive && project && (
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  File hiện tại
+                </p>
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {existingArchive.fileName} •{" "}
+                  {formatFileSize(existingArchive.sizeBytes)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                  Cập nhật:{" "}
+                  {new Date(existingArchive.createdAt).toLocaleString("vi-VN")}
+                </p>
+              </div>
 
-        {/* Tech Stack */}
-        <div className="md:col-span-2">
-          <label htmlFor="techStack" className="block text-sm font-medium mb-2">
-            Tech Stack (comma-separated) *
-          </label>
-          <input
-            type="text"
-            id="techStack"
-            name="techStack"
-            value={formData.techStack}
-            onChange={handleChange}
-            placeholder="React, Next.js, Tailwind CSS, PostgreSQL"
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
+              <Link
+                href={`/api/projects/${project.id}/download`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-white dark:border-gray-700 dark:hover:bg-gray-800"
+              >
+                <Download size={16} />
+                Tải file hiện tại
+              </Link>
+            </div>
+          </div>
+        )}
 
-        {/* Short Description */}
-        <div className="md:col-span-2">
-          <label
-            htmlFor="shortDescription"
-            className="block text-sm font-medium mb-2"
-          >
-            Short Description *
-          </label>
-          <textarea
-            id="shortDescription"
-            name="shortDescription"
-            value={formData.shortDescription}
-            onChange={handleChange}
-            placeholder="A brief description of your project"
-            rows={3}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
+        <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
+          Project loại này sẽ tự lưu ở trạng thái <strong>Published</strong> và
+          chế độ <strong>Public</strong> để người dùng thấy ngay trong danh sách
+          thư mục tải xuống.
         </div>
+      </section>
 
-        {/* Content */}
-        <div className="md:col-span-2">
-          <label htmlFor="content" className="block text-sm font-medium mb-2">
-            Full Description *
-          </label>
-          <textarea
-            id="content"
-            name="content"
-            value={formData.content}
-            onChange={handleChange}
-            placeholder="Detailed description of your project..."
-            rows={6}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        {/* GitHub URL */}
-        <div>
-          <label htmlFor="githubUrl" className="block text-sm font-medium mb-2">
-            GitHub URL
-          </label>
-          <input
-            type="url"
-            id="githubUrl"
-            name="githubUrl"
-            value={formData.githubUrl}
-            onChange={handleChange}
-            placeholder="https://github.com/..."
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Demo URL */}
-        <div>
-          <label htmlFor="demoUrl" className="block text-sm font-medium mb-2">
-            Demo URL
-          </label>
-          <input
-            type="url"
-            id="demoUrl"
-            name="demoUrl"
-            value={formData.demoUrl}
-            onChange={handleChange}
-            placeholder="https://..."
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Visibility */}
-        <div>
-          <label
-            htmlFor="visibility"
-            className="block text-sm font-medium mb-2"
-          >
-            Visibility *
-          </label>
-          <select
-            id="visibility"
-            name="visibility"
-            value={formData.visibility}
-            onChange={handleChange}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="PUBLIC">🌐 Public</option>
-            <option value="PRIVATE">🔒 Private</option>
-            <option value="SHARED">👥 Shared</option>
-          </select>
-        </div>
-
-        {/* Status */}
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium mb-2">
-            Status *
-          </label>
-          <select
-            id="status"
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="DRAFT">Draft</option>
-            <option value="PUBLISHED">Published</option>
-            <option value="ARCHIVED">Archived</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Buttons */}
-      <div className="flex gap-4 pt-6 border-t border-gray-200 dark:border-gray-800">
+      <div className="flex flex-col gap-3 border-t border-gray-200 pt-6 dark:border-gray-800 sm:flex-row">
         <button
           type="submit"
-          disabled={isLoading}
-          className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isBusy}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isLoading
-            ? "Saving..."
-            : project
-              ? "Update Project"
-              : "Create Project"}
+          {isBusy && <Loader size={16} className="animate-spin" />}
+          {isPreparingArchive
+            ? "Đang nén và upload..."
+            : isSavingProject
+              ? "Đang lưu project..."
+              : project
+                ? "Cập nhật project"
+                : "Tạo project"}
         </button>
+
         <button
           type="button"
           onClick={() => router.back()}
-          className="btn-secondary"
+          className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
         >
-          Cancel
+          Quay lại
         </button>
       </div>
     </form>
   );
+}
+
+function buildProjectPayload(title: string, project?: ProjectFormProject) {
+  const trimmedTitle = title.trim();
+
+  return {
+    title: trimmedTitle,
+    slug: project?.slug || slugifyProjectTitle(trimmedTitle),
+    shortDescription: `Folder tài liệu ${trimmedTitle} đã được chia sẻ để mọi người tải xuống và sử dụng ngay.`,
+    content: `Đây là thư mục tài liệu dành cho ${trimmedTitle}. Toàn bộ nội dung được đóng gói thành một file ZIP để người dùng chỉ cần bấm tải một lần là có thể dùng ngay trên máy của mình.`,
+    subjectName: trimmedTitle,
+    semester: "Shared resources",
+    techStack: "ZIP archive, Downloadable resources",
+    githubUrl: project?.githubUrl || "",
+    demoUrl: project?.demoUrl || "",
+    visibility: "PUBLIC" as const,
+    status: "PUBLISHED" as const,
+    sharedUsers: [],
+  };
+}
+
+async function createProjectArchive(files: File[], projectTitle: string) {
+  const zip = new JSZip();
+  const folderName =
+    getRootFolderName(files) || projectTitle.trim() || "shared-folder";
+
+  for (const file of files) {
+    const relativePath = file.webkitRelativePath || file.name;
+    zip.file(relativePath || file.name, file);
+  }
+
+  const archiveBlob = await zip.generateAsync({
+    type: "blob",
+    mimeType: "application/zip",
+    compression: "DEFLATE",
+    compressionOptions: {
+      level: 6,
+    },
+  });
+
+  const archiveFile = new File(
+    [archiveBlob],
+    `${slugifyProjectTitle(folderName)}.zip`,
+    {
+      type: "application/zip",
+    },
+  );
+
+  validateProjectArchiveCandidate(archiveFile);
+
+  return {
+    archiveFile,
+    folderName,
+  };
+}
+
+function getRootFolderName(files: File[]) {
+  const firstRelativePath = files[0]?.webkitRelativePath ?? "";
+  const [rootFolderName] = firstRelativePath.split("/");
+
+  return rootFolderName || null;
+}
+
+async function readJsonResponse(response: Response) {
+  try {
+    return (await response.json()) as { error?: string } | null;
+  } catch {
+    return null;
+  }
 }

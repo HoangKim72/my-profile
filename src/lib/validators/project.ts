@@ -2,7 +2,12 @@
 
 import { z } from "zod";
 
-export const createProjectSchema = z.object({
+export const projectShareSchema = z.object({
+  userId: z.string().min(1),
+  permissionType: z.enum(["VIEW", "EDIT"]),
+});
+
+const projectSchema = z.object({
   title: z.string().min(5, "Tiêu đề ít nhất 5 ký tự").max(200),
   slug: z
     .string()
@@ -20,7 +25,14 @@ export const createProjectSchema = z.object({
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("DRAFT"),
 });
 
-export const updateProjectSchema = createProjectSchema.partial();
+export const createProjectSchema = projectSchema.extend({
+  sharedUsers: z.array(projectShareSchema).default([]),
+});
+
+export const updateProjectSchema = projectSchema
+  .partial()
+  .extend({ sharedUsers: z.array(projectShareSchema).optional() });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+export type ProjectShareInput = z.infer<typeof projectShareSchema>;

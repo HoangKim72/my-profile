@@ -6,6 +6,77 @@ import { prisma } from "@/lib/db/prisma";
 import { AuthUser, UserRole } from "@/types";
 import { redirect } from "next/navigation";
 
+const VIEWER_ROLE_NAME = "viewer";
+const ROLE_PRIORITY: UserRole[] = ["guest", "viewer", "admin"];
+
+function resolveUserRole(roleNames: string[]): UserRole {
+  const rankedRole = [...ROLE_PRIORITY]
+    .reverse()
+    .find((role) => roleNames.includes(role));
+
+  return rankedRole ?? "viewer";
+}
+
+async function loadUserWithRole(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      userRoles: { include: { role: true } },
+      profile: true,
+    },
+  });
+}
+
+async function ensureUserRecord(userId: string, email: string) {
+  const viewerRole = await prisma.role.upsert({
+    where: { name: VIEWER_ROLE_NAME },
+    update: {},
+    create: {
+      name: VIEWER_ROLE_NAME,
+      description: "Can view shared projects",
+    },
+  });
+
+  const user = await prisma.user.upsert({
+    where: { id: userId },
+    update: { email },
+    create: {
+      id: userId,
+      email,
+      profile: {
+        create: { email },
+      },
+      userRoles: {
+        create: { roleId: viewerRole.id },
+      },
+    },
+    include: {
+      userRoles: { include: { role: true } },
+      profile: true,
+    },
+  });
+
+  if (user.userRoles.length > 0) {
+    return user;
+  }
+
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId,
+        roleId: viewerRole.id,
+      },
+    },
+    update: {},
+    create: {
+      userId,
+      roleId: viewerRole.id,
+    },
+  });
+
+  return loadUserWithRole(userId);
+}
+
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const supabase = await createClient();
@@ -16,25 +87,27 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
     if (!supabaseUser) return null;
 
-    // Get user role from database
-    const userWithRole = await prisma.user.findUnique({
-      where: { id: supabaseUser.id },
-      include: {
-        userRoles: { include: { role: true } },
-        profile: true,
-      },
-    });
+    const email = supabaseUser.email ?? `${supabaseUser.id}@users.local`;
+    const userWithRole =
+      (await loadUserWithRole(supabaseUser.id)) ??
+      (await ensureUserRecord(supabaseUser.id, email));
 
     if (!userWithRole) return null;
 
-    const role: UserRole =
-      userWithRole.userRoles.length > 0
-        ? (userWithRole.userRoles[0].role.name as UserRole)
-        : "viewer";
+    if (userWithRole.userRoles.length === 0) {
+      return {
+        id: supabaseUser.id,
+        email,
+        role: "viewer",
+        profile: userWithRole.profile || undefined,
+      };
+    }
+
+    const role = resolveUserRole(userWithRole.userRoles.map((item) => item.role.name));
 
     return {
       id: supabaseUser.id,
-      email: supabaseUser.email || "",
+      email,
       role,
       profile: userWithRole.profile || undefined,
     };
@@ -48,29 +121,6 @@ export async function requireAuth(): Promise<AuthUser> {
   const user = await getCurrentUser();
   if (!user) {
     redirect("/login");
-  }
-  return user;
-}
-
-export async function requireAdmin(): Promise<AuthUser> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    redirect("/unauthorized");
-  }
-  return user;
-}
-
-export async function requireRole(requiredRole: UserRole): Promise<AuthUser> {
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect("/login");
-  }
-  if (requiredRole === "guest") return user;
-  if (requiredRole === "viewer" && user.role === "guest") {
-    redirect("/unauthorized");
-  }
-  if (requiredRole === "admin" && user.role !== "admin") {
-    redirect("/unauthorized");
   }
   return user;
 }

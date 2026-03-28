@@ -8,7 +8,7 @@ async function main() {
   console.log("🌱 Starting seed...");
 
   // Create roles
-  const adminRole = await prisma.role.upsert({
+  await prisma.role.upsert({
     where: { name: "admin" },
     update: {},
     create: {
@@ -17,7 +17,7 @@ async function main() {
     },
   });
 
-  const viewerRole = await prisma.role.upsert({
+  await prisma.role.upsert({
     where: { name: "viewer" },
     update: {},
     create: {
@@ -27,42 +27,6 @@ async function main() {
   });
 
   console.log("✓ Roles created");
-
-  // Create sample tags
-  const tags = await Promise.all([
-    prisma.tag.upsert({
-      where: { slug: "react" },
-      update: {},
-      create: { name: "React", slug: "react" },
-    }),
-    prisma.tag.upsert({
-      where: { slug: "nextjs" },
-      update: {},
-      create: { name: "Next.js", slug: "nextjs" },
-    }),
-    prisma.tag.upsert({
-      where: { slug: "tailwind" },
-      update: {},
-      create: { name: "Tailwind CSS", slug: "tailwind" },
-    }),
-    prisma.tag.upsert({
-      where: { slug: "typescript" },
-      update: {},
-      create: { name: "TypeScript", slug: "typescript" },
-    }),
-    prisma.tag.upsert({
-      where: { slug: "nodejs" },
-      update: {},
-      create: { name: "Node.js", slug: "nodejs" },
-    }),
-    prisma.tag.upsert({
-      where: { slug: "postgresql" },
-      update: {},
-      create: { name: "PostgreSQL", slug: "postgresql" },
-    }),
-  ]);
-
-  console.log("✓ Tags created");
 
   // Create sample user (you would normally do this via Supabase Auth)
   // In production, create users through your auth flow

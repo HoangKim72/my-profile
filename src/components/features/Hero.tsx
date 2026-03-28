@@ -1,6 +1,7 @@
 // src/components/features/Hero.tsx
 
 import Link from "next/link";
+import { SITE_NAME } from "@/lib/utils/constants";
 
 export function Hero() {
   return (
@@ -8,12 +9,12 @@ export function Hero() {
       <div className="container-custom">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 text-gradient">
-            Welcome to My Portfolio
+            Welcome to {SITE_NAME}
           </h1>
 
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
-            I'm a passionate developer and student showcasing my projects,
-            skills, and learning journey. Explore my work and let's connect!
+            I&apos;m a passionate developer and student showcasing my projects,
+            skills, and learning journey. Explore my work and let&apos;s connect!
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">

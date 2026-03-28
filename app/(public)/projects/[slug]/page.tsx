@@ -5,6 +5,10 @@ import { getProjectBySlug } from "@/actions/projects";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Download } from "lucide-react";
+import { formatFileSize } from "@/lib/projects/archive";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -38,6 +42,7 @@ export default async function ProjectDetail({
     notFound();
   }
 
+  const latestArchive = project.files?.[0] ?? null;
   const techTags = project.techStack.split(",").map((t: string) => t.trim());
 
   return (
@@ -48,7 +53,7 @@ export default async function ProjectDetail({
           href="/projects"
           className="text-blue-600 hover:text-blue-700 font-medium mb-8 inline-flex items-center gap-2"
         >
-          ← Back to Projects
+          ← Back to Shared Folders
         </Link>
 
         <h1 className="text-5xl font-bold mb-4 text-gradient">
@@ -57,6 +62,28 @@ export default async function ProjectDetail({
         <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
           {project.shortDescription}
         </p>
+
+        {latestArchive && (
+          <div className="mb-8 rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/40">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Download This Folder</h2>
+                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                  {latestArchive.fileName} •{" "}
+                  {formatFileSize(latestArchive.sizeBytes)}
+                </p>
+              </div>
+
+              <Link
+                href={`/api/projects/${project.id}/download`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                <Download size={18} />
+                Download ZIP
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Meta Info */}
         <div className="flex flex-wrap gap-4 mb-8 pb-8 border-b border-gray-200 dark:border-gray-800">
@@ -68,9 +95,11 @@ export default async function ProjectDetail({
           </div>
           <div>
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              Semester
+              Delivery
             </span>
-            <p className="font-semibold">{project.semester}</p>
+            <p className="font-semibold">
+              {latestArchive ? "ZIP download" : "Preparing archive"}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-600 dark:text-gray-400">

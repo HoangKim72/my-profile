@@ -27,7 +27,7 @@
 - ✅ Project cards
 - ✅ Contact form
 - ✅ Sidebar (dashboard)
-- ✅ Dashboard header
+- ✅ Dashboard shell header
 - ✅ Global styling with Tailwind CSS
 
 ### 📄 Public Pages (All Server Components)
@@ -64,11 +64,9 @@
 - ✅ Auth utility functions
 - ✅ Validators with Zod (Project, Contact, Upload)
 
-### 🛠️ Utilities & Helpers
+### 🛠️ Utilities
 
-- ✅ Constants (roles, nav links, visibility)
-- ✅ Helper functions (slugify, formatDate, formatFileSize)
-- ✅ classname merge utility
+- ✅ Constants (site + navigation)
 - ✅ Type definitions and interfaces
 
 ### 📚 Documentation
@@ -93,7 +91,6 @@
 2. **API Routes** (Not yet created)
 
    ```
-   - app/api/auth/[...path]/route.ts (Supabase auth)
    - app/api/upload/route.ts (File uploads)
    - app/api/projects/route.ts (REST endpoints)
    ```
@@ -131,7 +128,7 @@
    - Tag filtering on projects page
 
 4. **Notifications/Toast System**
-   - Sonner toast setup
+   - Toast or inline notification setup
    - Success/error notifications
    - Loading states
 
@@ -143,7 +140,7 @@
 ### 🟢 LOW PRIORITY (Nice to Have)
 
 1. **Dark Mode Toggle**
-   - next-themes integration
+   - Theme toggle UI
    - Theme switcher component
 
 2. **Search Functionality**
@@ -255,11 +252,9 @@ Total: 11 tables with full relationships
 - `src/lib/validators/contact.ts`
 - `src/lib/validators/upload.ts`
 
-### Utilities (3 files)
+### Utilities (1 file)
 
-- `src/lib/utils/cn.ts`
 - `src/lib/utils/constants.ts`
-- `src/lib/utils/helpers.ts`
 
 ### Server Actions (2 files)
 
@@ -268,7 +263,7 @@ Total: 11 tables with full relationships
 
 ### UI Components (10+ files)
 
-- Layout: Navbar, Footer, Sidebar, DashboardHeader
+- Layout: Navbar, Footer, Sidebar
 - Projects: ProjectCard, ProjectForm
 - Features: Hero, ContactForm
 - Plus more...
@@ -286,14 +281,14 @@ Total: 11 tables with full relationships
 | Layer          | Tech                             |
 | -------------- | -------------------------------- |
 | **Frontend**   | Next.js 16, React 19, TypeScript |
-| **Styling**    | Tailwind CSS v4, shadcn/ui ready |
+| **Styling**    | Tailwind CSS v4                  |
 | **Database**   | PostgreSQL (Supabase)            |
 | **ORM**        | Prisma                           |
 | **Auth**       | Supabase Auth                    |
 | **Storage**    | Supabase Storage                 |
 | **Validation** | Zod                              |
-| **Forms**      | React Hook Form ready            |
-| **State**      | Zustand (configured)             |
+| **Forms**      | Native React forms               |
+| **State**      | Local React state                |
 | **Deploy**     | Vercel                           |
 
 ---

@@ -24,6 +24,32 @@ export interface UserProfile {
   websiteUrl: string | null;
 }
 
+export type ProjectPermissionType = "VIEW" | "EDIT";
+
+export interface ShareableUser {
+  id: string;
+  email: string;
+  fullName: string | null;
+  headline: string | null;
+}
+
+export interface ProjectShareAccess {
+  userId: string;
+  permissionType: ProjectPermissionType;
+  user: ShareableUser;
+}
+
+export interface ProjectFileAsset {
+  id: string;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: string | null;
+  createdAt: Date;
+}
+
 export interface Project {
   id: string;
   slug: string;
@@ -43,73 +69,8 @@ export interface Project {
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
+  files?: ProjectFileAsset[];
 }
 
 export type ProjectStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type Visibility = "PUBLIC" | "PRIVATE" | "SHARED";
-
-export interface ProjectWithDetails extends Project {
-  author: UserProfile;
-  files: ProjectFile[];
-  images: ProjectImage[];
-  tags: Tag[];
-}
-
-export interface ProjectFile {
-  id: string;
-  projectId: string;
-  fileName: string;
-  filePath: string;
-  fileType: string;
-  mimeType: string;
-  sizeBytes: number;
-  createdAt: Date;
-}
-
-export interface ProjectImage {
-  id: string;
-  projectId: string;
-  imageUrl: string;
-  altText?: string;
-  sortOrder: number;
-}
-
-export interface Tag {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-export interface ContactMessage {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  userId?: string;
-  isRead: boolean;
-  createdAt: Date;
-}
-
-// API Response types
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
-export interface PaginatedResponse<T> {
-  success: boolean;
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface UploadResponse {
-  url: string;
-  path: string;
-  size: number;
-  mimeType: string;
-}

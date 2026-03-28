@@ -3,10 +3,13 @@
 "use client";
 
 import { useState } from "react";
-import { contactMessageSchema } from "@/lib/validators/contact";
+import {
+  contactMessageSchema,
+  ContactMessageInput,
+} from "@/lib/validators/contact";
 
 interface ContactFormProps {
-  onSubmit: (data: any) => Promise<any>;
+  onSubmit: (data: ContactMessageInput) => Promise<{ success: boolean }>;
 }
 
 export function ContactForm({ onSubmit }: ContactFormProps) {
@@ -36,8 +39,10 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
       const validated = contactMessageSchema.parse(formData);
       await onSubmit(validated);
       setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (err: any) {
-      setError(err.message || "Failed to submit form");
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to submit form",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +98,7 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
           name="subject"
           value={formData.subject}
           onChange={handleChange}
-          placeholder="What's this about?"
+          placeholder="What is this about?"
           className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
         />

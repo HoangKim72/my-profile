@@ -15,8 +15,8 @@ export default function ContactPage() {
       <div className="container-custom max-w-2xl">
         <h1 className="text-5xl font-bold mb-6 text-gradient">Get in Touch</h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 mb-12">
-          Have a question or want to collaborate? I'd love to hear from you.
-          Fill out the form below and I'll get back to you as soon as possible.
+          Have a question or want to collaborate? I&apos;d love to hear from you.
+          Fill out the form below and I&apos;ll get back to you as soon as possible.
         </p>
 
         <ContactForm onSubmit={submitContactMessage} />

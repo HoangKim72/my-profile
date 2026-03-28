@@ -41,16 +41,16 @@
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │              SERVER ACTIONS (Business Logic)              │  │
 │  │  ├─ Projects: Create, Read, Update, Delete, Publish      │  │
-│  │  ├─ Contact: Submit, View, Mark as read, Delete          │  │
+│  │  ├─ Contact: Submit messages                             │  │
 │  │  ├─ Upload: Images, Files                                │  │
 │  │  └─ Users: Manage roles, permissions                     │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                   │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │              API ROUTES (External Integration)            │  │
-│  │  ├─ /api/auth/[...path]    (Auth callbacks)              │  │
-│  │  ├─ /api/upload            (File & Image uploads)        │  │
-│  │  └─ /api/projects          (REST endpoints)              │  │
+│  │          ROUTE HANDLERS (Current + Planned)               │  │
+│  │  ├─ /auth/callback        (Session exchange)             │  │
+│  │  ├─ /api/upload           (Planned file & image upload)  │  │
+│  │  └─ /api/projects         (Planned REST endpoints)       │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                   │
 └─────────────────────────────────────────────────────────────────┘
@@ -61,8 +61,7 @@
 │  ├─ Auth Middleware       (protect dashboard routes)            │
 │  ├─ Permission System     (RBAC: guest, viewer, admin)          │
 │  ├─ Validators            (Zod schemas)                         │
-│  ├─ Helpers               (Format, slug, utils)                 │
-│  └─ Custom Hooks          (useAuth, useProjects)                │
+│  └─ Constants             (site and navigation config)          │
 └─────────────────────────────────────────────────────────────────┘
                              ⬇️
 ┌─────────────────────────────────────────────────────────────────┐
@@ -116,7 +115,6 @@
 app/(public)/        ← Public pages, no auth required
 app/(auth)/          ← Auth-related pages
 app/(dashboard)/     ← Protected admin pages
-app/api/             ← API routes
 ```
 
 **Benefit**: Clean separation of concerns, easier to read flow
@@ -135,9 +133,9 @@ Used Server Actions for:
 - No additional endpoints
 - Automatic revalidation
 
-API Routes used for:
+Route Handlers used for:
 
-- Auth callbacks (Supabase requirement)
+- Auth callback session exchange
 - File uploads (need FormData)
 - External integrations
 
@@ -199,10 +197,8 @@ if (request.nextUrl.pathname.startsWith("/dashboard")) {
 ```
 components/
 ├── layout/          ← Navbar, Footer, Sidebar (reusable frames)
-├── common/          ← Button, Card, Avatar (atomic)
-├── features/        ← Hero, ContactForm, Skills (page-level)
-├── projects/        ← ProjectCard, ProjectForm (domain-specific)
-└── auth/            ← LoginForm, LogoutButton (auth-related)
+├── features/        ← Hero, ContactForm (page-level)
+└── projects/        ← ProjectCard, ProjectForm (domain-specific)
 ```
 
 **Benefit**: Easy to find, understand, and reuse components
@@ -323,10 +319,9 @@ RootLayout
 │   └── LoginForm (client form)
 ├── (dashboard)
 │   ├── Sidebar (client nav)
-│   ├── DashboardHeader (client header)
 │   └── ProjectForm (client form with actions)
-├── api/
-│   └── auth/ (route handler)
+├── auth/
+│   └── callback (route handler)
 └── Footer (client)
 ```
 

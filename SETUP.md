@@ -62,16 +62,16 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 ```bash
 # Generate Prisma client
-npx prisma generate
+npm run prisma:generate
 
 # Create database tables
-npx prisma migrate deploy
+npm run prisma:deploy
 
 # Or for dev:
-npx prisma migrate dev --name init
+npm run prisma:migrate -- --name init
 
 # Seed sample data
-npx prisma db seed
+npm run prisma:seed
 ```
 
 ### 4. Create `.env.local` File
@@ -100,8 +100,8 @@ Get database URLs from Supabase:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
-DATABASE_URL="postgresql://postgres:password@db.your-project.supabase.co:5432/postgres"
-DIRECT_URL="postgresql://postgres:password@db.your-project.supabase.co:5432/postgres?sslmode=require"
+DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres.PROJECT_REF:PASSWORD@REGION.pooler.supabase.com:5432/postgres"
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -275,8 +275,9 @@ vercel --prod
 2. Add to **Redirect URLs**:
 
    ```
-   https://your-domain.vercel.app/dashboard
    https://your-domain.vercel.app/auth/callback
+   https://your-domain.vercel.app/auth/callback?next=/dashboard
+   https://your-domain.vercel.app/dashboard
    ```
 
 3. If using custom domain, update redirect URLs accordingly

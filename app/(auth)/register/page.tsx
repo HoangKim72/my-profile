@@ -1,59 +1,36 @@
-// app/(auth)/register/page.tsx
-
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { prisma } from "@/lib/db/prisma";
+import {
+  registerUser,
+} from "@/actions/auth";
+import { initialAuthActionState } from "@/lib/validators/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const supabase = createClient();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const formStartedAtInputRef = useRef<HTMLInputElement>(null);
+  const [state, formAction, isPending] = useActionState(
+    registerUser,
+    initialAuthActionState,
+  );
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
+  useEffect(() => {
+    if (!state.success) {
       return;
     }
 
-    try {
-      // Sign up with Supabase
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
+    router.push("/dashboard");
+    router.refresh();
+  }, [router, state.success]);
 
-      if (signUpError) {
-        setError(signUpError.message);
-        return;
-      }
-
-      if (data.user) {
-        // Create user profile in database
-        // Note: In production, this should be done via a webhook
-        // For now, we'll do it client-side (not recommended for production)
-
-        router.push("/dashboard");
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  const markFormInteraction = () => {
+    if (
+      formStartedAtInputRef.current &&
+      formStartedAtInputRef.current.value === "0"
+    ) {
+      formStartedAtInputRef.current.value = String(Date.now());
     }
   };
 
@@ -68,13 +45,31 @@ export default function RegisterPage() {
             Sign up to start building your portfolio
           </p>
 
-          {error && (
+          {state.error && (
             <div className="mb-6 p-4 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded-lg">
-              {error}
+              {state.error}
             </div>
           )}
 
-          <form onSubmit={handleSignUp} className="space-y-6">
+          <form action={formAction} className="space-y-6">
+            <input
+              type="hidden"
+              name="formStartedAt"
+              defaultValue="0"
+              ref={formStartedAtInputRef}
+            />
+
+            <div className="hidden" aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2">
                 Email
@@ -82,10 +77,11 @@ export default function RegisterPage() {
               <input
                 type="email"
                 id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
                 placeholder="you@example.com"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="email"
+                onFocus={markFormInteraction}
                 required
               />
             </div>
@@ -100,38 +96,42 @@ export default function RegisterPage() {
               <input
                 type="password"
                 id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                name="password"
+                placeholder="Minimum 8 characters"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="new-password"
+                minLength={8}
+                onFocus={markFormInteraction}
                 required
               />
             </div>
 
             <div>
               <label
-                htmlFor="confirm-password"
+                htmlFor="confirmPassword"
                 className="block text-sm font-medium mb-2"
               >
                 Confirm Password
               </label>
               <input
                 type="password"
-                id="confirm-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
+                id="confirmPassword"
+                name="confirmPassword"
+                placeholder="Repeat your password"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="new-password"
+                minLength={8}
+                onFocus={markFormInteraction}
                 required
               />
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isPending}
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Creating account..." : "Sign Up"}
+              {isPending ? "Creating account..." : "Sign Up"}
             </button>
           </form>
 
