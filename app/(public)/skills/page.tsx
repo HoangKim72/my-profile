@@ -11,7 +11,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function SkillsPage() {
-  const siteProfile = await getSiteProfile();
+  let siteProfile = null;
+
+  try {
+    siteProfile = await getSiteProfile();
+  } catch (error) {
+    console.error("Unable to load site profile for /skills:", error);
+  }
+
   const skillsData = await getSkillsPageData(siteProfile);
 
   return <SkillsShowcase data={skillsData} />;

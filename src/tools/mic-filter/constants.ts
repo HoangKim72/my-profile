@@ -15,8 +15,6 @@ export const ACCEPTED_EXCEL_EXTENSIONS = [".xls", ".xlsx"] as const;
 export const MAX_MIC_FILTER_FILE_SIZE =
   Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE) || 10 * 1024 * 1024;
 
-export const ENFORCE_TOMORROW_STUDY_DATE = true;
-
 export const SHIFT_WINDOWS = {
   morning: {
     label: "Ca sáng",

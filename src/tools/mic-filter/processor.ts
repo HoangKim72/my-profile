@@ -1,7 +1,6 @@
 import {
   ACCEPTED_EXCEL_EXTENSIONS,
   ACCEPTED_EXCEL_FILE_TYPES,
-  ENFORCE_TOMORROW_STUDY_DATE,
   MAX_MIC_FILTER_FILE_SIZE,
   REQUIRED_MIC_FILTER_COLUMNS,
   SHIFT_WINDOWS,
@@ -30,7 +29,6 @@ const REQUIRED_COLUMN_KEYS = {
 
 export async function processMicFilterFile(
   file: File,
-  now = new Date(),
 ): Promise<MicFilterReport> {
   validateExcelFile(file);
 
@@ -53,12 +51,12 @@ export async function processMicFilterFile(
     defval: null,
   });
 
-  const parsedRows = parseWorksheetRows(rows);
+  const { parsedRows, hasStudyDateColumn } = parseWorksheetRows(rows);
 
   return buildMicFilterReport(parsedRows, {
     fileName: file.name,
-    now,
     sheetName,
+    hasStudyDateColumn,
   });
 }
 
@@ -80,7 +78,7 @@ function validateExcelFile(file: File) {
   }
 }
 
-function parseWorksheetRows(sheetRows: SheetCell[][]): ParsedMicScheduleRow[] {
+function parseWorksheetRows(sheetRows: SheetCell[][]) {
   const [headerRow, ...dataRows] = sheetRows;
 
   if (!headerRow || headerRow.length === 0) {
@@ -116,7 +114,10 @@ function parseWorksheetRows(sheetRows: SheetCell[][]): ParsedMicScheduleRow[] {
     throw new Error("File Excel không có dòng dữ liệu nào để xử lý.");
   }
 
-  return parsedRows;
+  return {
+    parsedRows,
+    hasStudyDateColumn,
+  };
 }
 
 function parseDataRow(
@@ -155,10 +156,6 @@ function parseDataRow(
     ? getCellValue(row, columnIndexes, REQUIRED_COLUMN_KEYS.studyDate)
     : null;
   const studyDateKey = hasStudyDateColumn ? parseDateKey(studyDateValue) : null;
-
-  if (hasStudyDateColumn && !studyDateKey) {
-    throw new Error(`Không đọc được Ngày học ở dòng ${rowNumber}.`);
-  }
 
   const startMinutes = parseTimeToMinutes(startTimeValue);
   const endMinutes = parseTimeToMinutes(endTimeValue);
@@ -213,28 +210,17 @@ function buildMicFilterReport(
   rows: ParsedMicScheduleRow[],
   options: {
     fileName: string;
-    now: Date;
     sheetName: string;
+    hasStudyDateColumn: boolean;
   },
 ): MicFilterReport {
-  const tomorrowKey = getTomorrowDateKey(options.now);
   const fileDateKeys = new Set(
     rows
       .map((row) => row.studyDateKey)
       .filter((studyDateKey): studyDateKey is string => Boolean(studyDateKey)),
   );
-  const hasStudyDateColumn = rows.some((row) => row.studyDateKey !== null);
 
-  if (
-    hasStudyDateColumn &&
-    ENFORCE_TOMORROW_STUDY_DATE &&
-    (fileDateKeys.size !== 1 || !fileDateKeys.has(tomorrowKey))
-  ) {
-    throw new Error("Ngày học không phải ngày mai, bạn có tải lên đúng file?");
-  }
-
-  const resolvedStudyDateKey =
-    hasStudyDateColumn && fileDateKeys.size === 1 ? [...fileDateKeys][0] : null;
+  const resolvedStudyDateKey = fileDateKeys.size === 1 ? [...fileDateKeys][0] : null;
   const specialAlarmCandidates = buildSpecialAlarmCandidates(
     rows.filter((row) => !row.isCancelled),
   );
@@ -337,7 +323,7 @@ function buildMicFilterReport(
   return {
     fileName: options.fileName,
     sheetName: options.sheetName,
-    hasStudyDateColumn,
+    hasStudyDateColumn: options.hasStudyDateColumn,
     studyDateKey: resolvedStudyDateKey,
     studyDateLabel: resolvedStudyDateKey
       ? formatDateKey(resolvedStudyDateKey)
@@ -568,15 +554,6 @@ function compareRoomCodes(left: string, right: string) {
 
 function sortRoomDisplays(rooms: string[]) {
   return [...new Set(rooms)].sort(compareRoomCodes);
-}
-
-function getTomorrowDateKey(now: Date) {
-  const tomorrow = new Date(now);
-
-  tomorrow.setHours(0, 0, 0, 0);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  return toDateKey(tomorrow);
 }
 
 function toDateKey(date: Date) {

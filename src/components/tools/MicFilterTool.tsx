@@ -86,7 +86,6 @@ export function MicFilterTool({
   const alarmTimeoutsRef = useRef<Map<string, number>>(new Map());
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const expectedDateLabel = getTomorrowLabel();
   const reportStudyDateLabel = report?.studyDateLabel ?? null;
   const canReset = Boolean(report || selectedFileName || fileError);
   const acTotal = acIncrease + acDecrease;
@@ -176,7 +175,7 @@ export function MicFilterTool({
           : "Đã lọc xong file.",
         description: nextReport.hasStudyDateColumn
           ? `Sheet đang xử lý: ${nextReport.sheetName}. Hai bảng kết quả đã sẵn sàng để bạn thao tác.`
-          : `Sheet đang xử lý: ${nextReport.sheetName}. File không có cột Ngày học nên hệ thống bỏ qua bước kiểm tra ngày.`,
+          : `Sheet đang xử lý: ${nextReport.sheetName}. Hai bảng kết quả đã sẵn sàng để bạn thao tác.`,
       });
     } catch (error) {
       const message =
@@ -185,9 +184,7 @@ export function MicFilterTool({
       setFileError({
         title: message,
         description:
-          message === "Ngày học không phải ngày mai, bạn có tải lên đúng file?"
-            ? `Ngày cần có trong file là ${expectedDateLabel}. Bạn hãy chọn lại file lịch học của ngày mai.`
-            : "Bạn có thể kiểm tra lại file rồi tải lên lại ngay ở khung chọn file bên trên.",
+          "Bạn có thể kiểm tra lại file rồi tải lên lại ngay ở khung chọn file bên trên.",
       });
       setInputKey((current) => current + 1);
     } finally {
@@ -273,7 +270,6 @@ export function MicFilterTool({
         <>
           <section className="grid grid-cols-1 items-start gap-6 xl:grid-cols-5">
             <UploadCard
-              expectedDateLabel={expectedDateLabel}
               isLoading={isLoading}
               selectedFileName={selectedFileName}
               fileError={fileError}
@@ -359,7 +355,6 @@ export function MicFilterTool({
                 sheetName={report.sheetName}
                 hasStudyDateColumn={report.hasStudyDateColumn}
                 studyDateLabel={report.studyDateLabel}
-                expectedDateLabel={expectedDateLabel}
               />
             </section>
           )}
@@ -642,7 +637,6 @@ export function MicFilterTool({
 }
 
 function UploadCard({
-  expectedDateLabel,
   isLoading,
   selectedFileName,
   fileError,
@@ -651,7 +645,6 @@ function UploadCard({
   onReset,
   onFileChange,
 }: {
-  expectedDateLabel: string;
   isLoading: boolean;
   selectedFileName: string | null;
   fileError: InlineErrorState | null;
@@ -662,7 +655,7 @@ function UploadCard({
 }) {
   return (
     <section className="relative overflow-hidden rounded-[1.75rem] border border-cyan-400/15 bg-[linear-gradient(180deg,_rgba(7,17,38,0.98)_0%,_rgba(5,14,31,0.98)_100%)] p-5 shadow-[0_24px_70px_-36px_rgba(14,165,233,0.4)] xl:col-span-3">
-      <LogicHoverCard expectedDateLabel={expectedDateLabel} />
+      <LogicHoverCard />
 
       <div className="pr-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1074,13 +1067,11 @@ function FileReadInfoCard({
   sheetName,
   studyDateLabel,
   hasStudyDateColumn,
-  expectedDateLabel,
 }: {
   fileName: string;
   sheetName: string;
   studyDateLabel: string | null;
   hasStudyDateColumn: boolean;
-  expectedDateLabel: string;
 }) {
   return (
     <section className="rounded-[1.75rem] border border-slate-800 bg-[#07101f]/90 p-6">
@@ -1094,11 +1085,11 @@ function FileReadInfoCard({
           value={studyDateLabel ?? "Không có cột Ngày học"}
         />
         <InfoItem
-          label="Kiểm tra ngày học"
+          label="Cột Ngày học"
           value={
             hasStudyDateColumn
-              ? `Đã so với ${expectedDateLabel}`
-              : "Không có cột Ngày học, đã bỏ qua"
+              ? "Có trong file"
+              : "Không có trong file"
           }
         />
       </div>
@@ -1123,11 +1114,7 @@ function InfoItem({
   );
 }
 
-function LogicHoverCard({
-  expectedDateLabel,
-}: {
-  expectedDateLabel: string;
-}) {
+function LogicHoverCard() {
   return (
     <div className="group absolute right-4 top-4 z-10">
       <button
@@ -1165,9 +1152,8 @@ function LogicHoverCard({
           </p>
           <p>
             Nếu file có cột <span className="font-semibold text-white">Ngày học</span>
-            , hệ thống sẽ so với ngày mai:{" "}
-            <span className="font-semibold text-white">{expectedDateLabel}</span>.
-            Nếu không có cột này thì vẫn lọc bình thường.
+            , hệ thống chỉ đọc để hiển thị thông tin, không dùng cột này để
+            chặn xử lý file.
           </p>
         </div>
       </div>
@@ -1245,15 +1231,6 @@ function RoomTextList({ rooms }: { rooms: string[] }) {
   }
 
   return <span>{rooms.join(", ")}</span>;
-}
-
-function getTomorrowLabel() {
-  const tomorrow = new Date();
-
-  tomorrow.setHours(0, 0, 0, 0);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  return tomorrow.toLocaleDateString("vi-VN");
 }
 
 function getTodayLabel() {
