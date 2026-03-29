@@ -17,6 +17,14 @@ export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const supabase = createClient();
 
+  const isLinkActive = (href: string) => {
+    if (href === "/dashboard") {
+      return pathname === "/dashboard";
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
@@ -34,8 +42,7 @@ export function Sidebar({ user }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-6 space-y-2">
         {ADMIN_NAV_LINKS.map((link) => {
-          const isActive =
-            pathname === link.href || pathname.startsWith(link.href + "/");
+          const isActive = isLinkActive(link.href);
           return (
             <Link
               key={link.href}

@@ -3,8 +3,8 @@ export interface ParsedMicScheduleRow {
   roomCode: string;
   roomNumber: string;
   roomDisplay: string;
-  studyDateKey: string;
-  studyDateLabel: string;
+  studyDateKey: string | null;
+  studyDateLabel: string | null;
   startMinutes: number;
   endMinutes: number;
   note: string | null;
@@ -44,8 +44,9 @@ export interface SpecialAlarmCandidate {
 export interface MicFilterReport {
   fileName: string;
   sheetName: string;
-  studyDateKey: string;
-  studyDateLabel: string;
+  hasStudyDateColumn: boolean;
+  studyDateKey: string | null;
+  studyDateLabel: string | null;
   totalScheduleCount: number;
   wirelessScheduleCount: number;
   ignoredScheduleCount: number;

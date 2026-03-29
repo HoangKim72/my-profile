@@ -3,10 +3,7 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import {
-  consumeRateLimit,
-  rateLimitPresets,
-} from "@/lib/security/rate-limit";
+import { consumeRateLimit, rateLimitPresets } from "@/lib/security/rate-limit";
 import { getClientIpFromRequest } from "@/lib/security/request";
 
 export async function middleware(request: NextRequest) {

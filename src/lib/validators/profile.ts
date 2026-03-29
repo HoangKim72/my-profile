@@ -27,7 +27,8 @@ const optionalUrl = z
 export const updateProfileSchema = z.object({
   fullName: optionalText(120),
   headline: optionalText(160),
-  bio: optionalText(2000),
+  bio: optionalText(4000),
+  avatarUrl: optionalUrl,
   email: z
     .preprocess(
       emptyToUndefined,

@@ -1,6 +1,5 @@
 export const REQUIRED_MIC_FILTER_COLUMNS = [
   "Mã phòng",
-  "Ngày học",
   "Thời gian bắt đầu",
   "Thời gian kết thúc",
   "Ghi chú",
@@ -16,7 +15,7 @@ export const ACCEPTED_EXCEL_EXTENSIONS = [".xls", ".xlsx"] as const;
 export const MAX_MIC_FILTER_FILE_SIZE =
   Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE) || 10 * 1024 * 1024;
 
-export const ENFORCE_TOMORROW_STUDY_DATE = false;
+export const ENFORCE_TOMORROW_STUDY_DATE = true;
 
 export const SHIFT_WINDOWS = {
   morning: {

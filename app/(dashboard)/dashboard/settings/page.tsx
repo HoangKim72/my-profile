@@ -1,15 +1,15 @@
 // app/(dashboard)/dashboard/settings/page.tsx
 
-import { requireAuth } from "@/lib/auth/check-auth";
+import { requireAdmin } from "@/lib/auth/check-auth";
 import { ProfileSettingsForm } from "@/components/features/ProfileSettingsForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const user = await requireAuth();
+  const user = await requireAdmin();
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <h1 className="text-4xl font-bold mb-8">Settings</h1>
 
       <ProfileSettingsForm
@@ -18,6 +18,7 @@ export default async function SettingsPage() {
           fullName: user.profile?.fullName ?? null,
           headline: user.profile?.headline ?? null,
           bio: user.profile?.bio ?? null,
+          avatarUrl: user.profile?.avatarUrl ?? null,
           email: user.profile?.email ?? user.email,
           phone: user.profile?.phone ?? null,
           githubUrl: user.profile?.githubUrl ?? null,

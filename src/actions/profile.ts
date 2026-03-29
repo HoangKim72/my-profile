@@ -13,6 +13,10 @@ export async function updateProfile(data: unknown) {
       return { success: false, error: "Unauthorized" };
     }
 
+    if (user.role !== "admin") {
+      return { success: false, error: "Forbidden" };
+    }
+
     const validated = updateProfileSchema.parse(data);
 
     const profile = await prisma.profile.upsert({
@@ -24,7 +28,10 @@ export async function updateProfile(data: unknown) {
       },
     });
 
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/settings");
+    revalidatePath("/about");
+    revalidatePath("/cv");
     revalidatePath("/");
 
     return { success: true, profile };

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   loginUser,
 } from "@/actions/auth";
+import { FullscreenLoader } from "@/components/ui/FullscreenLoader";
 import { initialAuthActionState } from "@/lib/validators/auth";
 
 export default function LoginPage() {
@@ -36,6 +37,17 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
+      {(isPending || state.success) && (
+        <FullscreenLoader
+          title={state.success ? "Dang mo dashboard" : "Dang dang nhap"}
+          description={
+            state.success
+              ? "He thong dang kiem tra quyen truy cap va chuan bi khu vuc admin cho ban."
+              : "Vui long cho trong giay lat trong khi he thong xac thuc tai khoan."
+          }
+        />
+      )}
+
       <div className="w-full max-w-md">
         <div className="card p-8">
           <h1 className="text-3xl font-bold mb-2 text-center">Welcome Back</h1>
@@ -105,10 +117,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || state.success}
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isPending ? "Signing in..." : "Sign In"}
+              {isPending || state.success ? "Signing in..." : "Sign In"}
             </button>
           </form>
 

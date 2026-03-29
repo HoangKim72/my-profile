@@ -21,7 +21,6 @@ import {
 } from "@/tools/mic-filter/alarm";
 import {
   ACCEPTED_EXCEL_EXTENSIONS,
-  ENFORCE_TOMORROW_STUDY_DATE,
   SHIFT_WINDOWS,
 } from "@/tools/mic-filter/constants";
 import { processMicFilterFile } from "@/tools/mic-filter/processor";
@@ -88,6 +87,7 @@ export function MicFilterTool({
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const expectedDateLabel = getTomorrowLabel();
+  const reportStudyDateLabel = report?.studyDateLabel ?? null;
   const canReset = Boolean(report || selectedFileName || fileError);
   const acTotal = acIncrease + acDecrease;
   const totalBattery = usedBatteryCount + extraBatteryCount;
@@ -131,10 +131,10 @@ export function MicFilterTool({
   }, [toast]);
 
   useEffect(() => {
-    if (report?.studyDateLabel && !hasEditedSummaryDate) {
-      setSummaryDate(report.studyDateLabel);
+    if (reportStudyDateLabel && !hasEditedSummaryDate) {
+      setSummaryDate(reportStudyDateLabel);
     }
-  }, [hasEditedSummaryDate, report?.studyDateLabel]);
+  }, [hasEditedSummaryDate, reportStudyDateLabel]);
 
   useEffect(() => {
     return () => {
@@ -171,8 +171,12 @@ export function MicFilterTool({
       setReport(nextReport);
       setToast({
         tone: "success",
-        title: `Đã lọc xong file cho ngày ${nextReport.studyDateLabel}.`,
-        description: `Sheet đang xử lý: ${nextReport.sheetName}. Hai bảng kết quả đã sẵn sàng để bạn thao tác.`,
+        title: nextReport.studyDateLabel
+          ? `Đã lọc xong file cho ngày ${nextReport.studyDateLabel}.`
+          : "Đã lọc xong file.",
+        description: nextReport.hasStudyDateColumn
+          ? `Sheet đang xử lý: ${nextReport.sheetName}. Hai bảng kết quả đã sẵn sàng để bạn thao tác.`
+          : `Sheet đang xử lý: ${nextReport.sheetName}. File không có cột Ngày học nên hệ thống bỏ qua bước kiểm tra ngày.`,
       });
     } catch (error) {
       const message =
@@ -223,7 +227,7 @@ export function MicFilterTool({
           shiftLabel={shiftLabel}
           shiftHeadingLabel={shiftHeadingLabel}
           summaryDate={summaryDate}
-          reportDateLabel={report?.studyDateLabel ?? null}
+          reportDateLabel={reportStudyDateLabel}
           acIncrease={acIncrease}
           acDecrease={acDecrease}
           acTotal={acTotal}
@@ -242,9 +246,9 @@ export function MicFilterTool({
             setHasEditedSummaryDate(true);
           }}
           onUseReportDate={
-            report?.studyDateLabel
+            reportStudyDateLabel
               ? () => {
-                  setSummaryDate(report.studyDateLabel);
+                  setSummaryDate(reportStudyDateLabel);
                   setHasEditedSummaryDate(false);
                 }
               : undefined
@@ -300,12 +304,14 @@ export function MicFilterTool({
                 </h2>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
                   {report
-                    ? `Đang hiển thị kết quả từ sheet ${report.sheetName} cho ngày ${report.studyDateLabel}.`
+                    ? report.studyDateLabel
+                      ? `Đang hiển thị kết quả từ sheet ${report.sheetName} cho ngày ${report.studyDateLabel}.`
+                      : `Đang hiển thị kết quả từ sheet ${report.sheetName}. File này không có cột Ngày học nên hệ thống lọc trực tiếp theo lịch hiện có.`
                     : "Tải file Excel để hệ thống cập nhật ngay Bảng 1 và Bảng 2 ở khu vực này."}
                 </p>
               </div>
 
-              {report && (
+              {report?.studyDateLabel && (
                 <div className="inline-flex items-center gap-2 self-start rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100 lg:self-auto">
                   <CheckCircle2 size={16} />
                   Ngày học {report.studyDateLabel}
@@ -335,7 +341,11 @@ export function MicFilterTool({
                 <SummaryCard
                   title="Phòng cần soạn buổi sáng"
                   value={String(report.morningRoomCount)}
-                  caption={`Chuẩn bị cho ngày ${report.studyDateLabel}`}
+                  caption={
+                    report.studyDateLabel
+                      ? `Chuẩn bị cho ngày ${report.studyDateLabel}`
+                      : "Chuẩn bị theo dữ liệu lịch vừa lọc"
+                  }
                 />
                 <SummaryCard
                   title="Thao tác buổi trưa"
@@ -347,6 +357,7 @@ export function MicFilterTool({
               <FileReadInfoCard
                 fileName={report.fileName ?? selectedFileName ?? "Không xác định"}
                 sheetName={report.sheetName}
+                hasStudyDateColumn={report.hasStudyDateColumn}
                 studyDateLabel={report.studyDateLabel}
                 expectedDateLabel={expectedDateLabel}
               />
@@ -656,16 +667,29 @@ function UploadCard({
       <div className="pr-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-100 shadow-lg shadow-cyan-400/10">
-              <UploadCloud size={22} />
+            <div className="group relative inline-flex">
+              <button
+                type="button"
+                aria-label="Xem hướng dẫn tải lịch học"
+                className="inline-flex h-12 w-12 cursor-help items-center justify-center rounded-2xl border border-cyan-400/15 bg-cyan-400/12 text-cyan-100 shadow-lg shadow-cyan-400/10 transition duration-200 hover:border-cyan-300/40 hover:bg-cyan-400/18 hover:text-white hover:shadow-cyan-400/20 focus:outline-none focus:ring-2 focus:ring-cyan-300/50 focus:ring-offset-2 focus:ring-offset-[#071120]"
+              >
+                <UploadCloud size={22} />
+              </button>
+
+              <div className="pointer-events-none absolute left-0 top-full z-20 mt-3 w-[min(22rem,calc(100vw-5rem))] translate-y-2 rounded-[1.25rem] border border-cyan-400/15 bg-[linear-gradient(180deg,_rgba(7,20,40,0.98)_0%,_rgba(5,14,28,0.98)_100%)] p-4 text-sm text-slate-200 opacity-0 shadow-2xl shadow-slate-950/50 backdrop-blur transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                <p className="font-semibold text-white">
+                  Tải file Excel ({ACCEPTED_EXCEL_EXTENSIONS.join(" / ")}) để hệ
+                  thống tự động xử lý và hiển thị kết quả ngay bên dưới.
+                </p>
+                <p className="mt-2 leading-6 text-slate-300">
+                  Hỗ trợ định dạng: {ACCEPTED_EXCEL_EXTENSIONS.join(", ")}. Dữ
+                  liệu sẽ được cập nhật ngay sau khi tải lên.
+                </p>
+              </div>
             </div>
             <h2 className="mt-4 text-2xl font-bold text-white">
               Tải lịch học
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Chọn file Excel để lọc nhanh. Sau khi xử lý xong, hai bảng kết quả
-              bên dưới sẽ cập nhật ngay.
-            </p>
           </div>
 
           {canReset && (
@@ -684,15 +708,6 @@ function UploadCard({
           <span className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
             Hỗ trợ {ACCEPTED_EXCEL_EXTENSIONS.join(" / ")}
           </span>
-          {ENFORCE_TOMORROW_STUDY_DATE ? (
-            <span className="rounded-full border border-blue-400/20 bg-blue-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
-              Ngày cần có trong file: {expectedDateLabel}
-            </span>
-          ) : (
-            <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
-              Tạm tắt kiểm tra ngày học
-            </span>
-          )}
         </div>
       </div>
 
@@ -1058,11 +1073,13 @@ function FileReadInfoCard({
   fileName,
   sheetName,
   studyDateLabel,
+  hasStudyDateColumn,
   expectedDateLabel,
 }: {
   fileName: string;
   sheetName: string;
-  studyDateLabel: string;
+  studyDateLabel: string | null;
+  hasStudyDateColumn: boolean;
   expectedDateLabel: string;
 }) {
   return (
@@ -1072,13 +1089,16 @@ function FileReadInfoCard({
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <InfoItem label="Tên file" value={fileName} />
         <InfoItem label="Sheet đang đọc" value={sheetName} />
-        <InfoItem label="Ngày học trong file" value={studyDateLabel} />
+        <InfoItem
+          label="Ngày học trong file"
+          value={studyDateLabel ?? "Không có cột Ngày học"}
+        />
         <InfoItem
           label="Kiểm tra ngày học"
           value={
-            ENFORCE_TOMORROW_STUDY_DATE
-              ? `Đang so với ${expectedDateLabel}`
-              : "Đang tạm tắt"
+            hasStudyDateColumn
+              ? `Đã so với ${expectedDateLabel}`
+              : "Không có cột Ngày học, đã bỏ qua"
           }
         />
       </div>
@@ -1144,9 +1164,10 @@ function LogicHoverCard({
             chiều, Thay Pin nếu dùng cả sáng và chiều.
           </p>
           <p>
-            {ENFORCE_TOMORROW_STUDY_DATE
-              ? `Cột Ngày học đang được so với ngày mai: ${expectedDateLabel}.`
-              : "Hiện đang tạm tắt kiểm tra Ngày học để bạn thử bằng file cũ."}
+            Nếu file có cột <span className="font-semibold text-white">Ngày học</span>
+            , hệ thống sẽ so với ngày mai:{" "}
+            <span className="font-semibold text-white">{expectedDateLabel}</span>.
+            Nếu không có cột này thì vẫn lọc bình thường.
           </p>
         </div>
       </div>
