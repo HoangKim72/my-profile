@@ -1,30 +1,17 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  registerUser,
-} from "@/actions/auth";
+import { registerUser } from "@/actions/auth";
 import { FullscreenLoader } from "@/components/ui/FullscreenLoader";
 import { initialAuthActionState } from "@/lib/validators/auth";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const formStartedAtInputRef = useRef<HTMLInputElement>(null);
   const [state, formAction, isPending] = useActionState(
     registerUser,
     initialAuthActionState,
   );
-
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
-    router.push("/dashboard");
-    router.refresh();
-  }, [router, state.success]);
 
   const markFormInteraction = () => {
     if (
@@ -37,14 +24,10 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      {(isPending || state.success) && (
+      {isPending && (
         <FullscreenLoader
-          title={state.success ? "Dang mo dashboard" : "Dang tao tai khoan"}
-          description={
-            state.success
-              ? "He thong dang kiem tra quyen truy cap va chuan bi khu vuc admin cho ban."
-              : "Vui long cho trong giay lat trong khi he thong tao tai khoan va xac thuc."
-          }
+          title="Dang tao tai khoan"
+          description="Vui long cho trong giay lat trong khi he thong tao tai khoan, dang nhap va chuyen ban vao dashboard."
         />
       )}
 
@@ -140,10 +123,10 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={isPending || state.success}
+              disabled={isPending}
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isPending || state.success ? "Creating account..." : "Sign Up"}
+              {isPending ? "Creating account..." : "Sign Up"}
             </button>
           </form>
 

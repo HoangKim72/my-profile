@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
-import { prisma } from "@/lib/db/prisma";
+import { redirect } from "next/navigation";
+import { syncAuthUserRecord } from "@/lib/auth/user-record";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   consumeRateLimit,
@@ -15,7 +16,6 @@ import {
   type AuthActionState,
 } from "@/lib/validators/auth";
 
-const VIEWER_ROLE_NAME = "viewer";
 const MIN_HUMAN_FORM_FILL_MS = 1200;
 const GENERIC_SIGN_IN_ERROR = "Email hoặc mật khẩu không đúng.";
 const GENERIC_SIGN_UP_ERROR =
@@ -70,30 +70,42 @@ export async function loginUser(
     };
   }
 
+  let shouldRedirect = false;
+
   try {
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: parsed.data.email,
       password: parsed.data.password,
     });
 
-    if (error) {
+    if (error || !data.user) {
       return {
         success: false,
         error: GENERIC_SIGN_IN_ERROR,
       };
     }
 
-    return {
-      success: true,
-      error: null,
-    };
+    await syncAuthUserRecord({
+      userId: data.user.id,
+      email: data.user.email ?? parsed.data.email,
+    });
+    shouldRedirect = true;
   } catch {
     return {
       success: false,
       error: GENERIC_SIGN_IN_ERROR,
     };
   }
+
+  if (shouldRedirect) {
+    redirect("/dashboard");
+  }
+
+  return {
+    success: false,
+    error: GENERIC_SIGN_IN_ERROR,
+  };
 }
 
 export async function registerUser(
@@ -144,6 +156,8 @@ export async function registerUser(
     };
   }
 
+  let shouldRedirect = false;
+
   try {
     const supabaseAdmin = createSupabaseAdmin();
     const { data: createdUser, error } = await supabaseAdmin.auth.admin.createUser({
@@ -159,7 +173,10 @@ export async function registerUser(
       };
     }
 
-    await upsertViewerUser(createdUser.user.id, parsed.data.email);
+    await syncAuthUserRecord({
+      userId: createdUser.user.id,
+      email: parsed.data.email,
+    });
 
     const supabase = await createSupabaseServerClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -173,45 +190,22 @@ export async function registerUser(
         error: "Tài khoản đã tạo nhưng chưa thể đăng nhập ngay. Vui lòng thử lại.",
       };
     }
-
-    return {
-      success: true,
-      error: null,
-    };
+    shouldRedirect = true;
   } catch {
     return {
       success: false,
       error: GENERIC_SIGN_UP_ERROR,
     };
   }
-}
 
-async function upsertViewerUser(userId: string, email: string) {
-  const viewerRole = await prisma.role.upsert({
-    where: { name: VIEWER_ROLE_NAME },
-    update: {},
-    create: {
-      name: VIEWER_ROLE_NAME,
-      description: "Can view shared projects",
-    },
-  });
+  if (shouldRedirect) {
+    redirect("/dashboard");
+  }
 
-  await prisma.user.upsert({
-    where: { id: userId },
-    update: { email },
-    create: {
-      id: userId,
-      email,
-      profile: {
-        create: { email },
-      },
-      userRoles: {
-        create: {
-          roleId: viewerRole.id,
-        },
-      },
-    },
-  });
+  return {
+    success: false,
+    error: GENERIC_SIGN_UP_ERROR,
+  };
 }
 
 async function assertHumanRequest(input: {

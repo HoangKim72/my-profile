@@ -1,30 +1,17 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  loginUser,
-} from "@/actions/auth";
+import { loginUser } from "@/actions/auth";
 import { FullscreenLoader } from "@/components/ui/FullscreenLoader";
 import { initialAuthActionState } from "@/lib/validators/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
   const formStartedAtInputRef = useRef<HTMLInputElement>(null);
   const [state, formAction, isPending] = useActionState(
     loginUser,
     initialAuthActionState,
   );
-
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
-    router.push("/dashboard");
-    router.refresh();
-  }, [router, state.success]);
 
   const markFormInteraction = () => {
     if (
@@ -37,14 +24,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      {(isPending || state.success) && (
+      {isPending && (
         <FullscreenLoader
-          title={state.success ? "Dang mo dashboard" : "Dang dang nhap"}
-          description={
-            state.success
-              ? "He thong dang kiem tra quyen truy cap va chuan bi khu vuc admin cho ban."
-              : "Vui long cho trong giay lat trong khi he thong xac thuc tai khoan."
-          }
+          title="Dang dang nhap"
+          description="Vui long cho trong giay lat trong khi he thong xac thuc tai khoan va chuyen ban vao dashboard."
         />
       )}
 
@@ -117,10 +100,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isPending || state.success}
+              disabled={isPending}
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isPending || state.success ? "Signing in..." : "Sign In"}
+              {isPending ? "Signing in..." : "Sign In"}
             </button>
           </form>
 

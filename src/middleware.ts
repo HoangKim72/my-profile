@@ -9,6 +9,8 @@ import { getClientIpFromRequest } from "@/lib/security/request";
 export async function middleware(request: NextRequest) {
   const ip = getClientIpFromRequest(request);
   const pathname = request.nextUrl.pathname;
+  const isDashboardRoute = pathname.startsWith("/dashboard");
+  const isAuthPage = pathname === "/login" || pathname === "/register";
 
   const globalRateLimit = consumeRateLimit({
     key: `global:${ip}`,
@@ -39,6 +41,10 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  if (!isDashboardRoute && !isAuthPage) {
+    return applySecurityHeaders(response, request);
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -61,7 +67,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect dashboard routes
-  if (pathname.startsWith("/dashboard")) {
+  if (isDashboardRoute) {
     if (!user) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL("/login", request.url)),
@@ -71,7 +77,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
-  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+  if (isAuthPage) {
     if (user) {
       return applySecurityHeaders(
         NextResponse.redirect(new URL("/dashboard", request.url)),

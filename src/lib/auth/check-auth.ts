@@ -1,12 +1,18 @@
 // src/lib/auth/check-auth.ts
 // Server-side auth checking utilities
 
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/db/prisma";
-import { AuthUser, UserRole } from "@/types";
-import { redirect } from "next/navigation";
+import "server-only";
 
-const VIEWER_ROLE_NAME = "viewer";
+import { cache } from "react";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db/prisma";
+import { createClient } from "@/lib/supabase/server";
+import {
+  isConfiguredAdminEmail,
+  syncAuthUserRecord,
+} from "@/lib/auth/user-record";
+import { AuthUser, UserRole } from "@/types";
+
 const ROLE_PRIORITY: UserRole[] = ["guest", "viewer", "admin"];
 
 function resolveUserRole(roleNames: string[]): UserRole {
@@ -27,57 +33,7 @@ async function loadUserWithRole(userId: string) {
   });
 }
 
-async function ensureUserRecord(userId: string, email: string) {
-  const viewerRole = await prisma.role.upsert({
-    where: { name: VIEWER_ROLE_NAME },
-    update: {},
-    create: {
-      name: VIEWER_ROLE_NAME,
-      description: "Can view shared projects",
-    },
-  });
-
-  const user = await prisma.user.upsert({
-    where: { id: userId },
-    update: { email },
-    create: {
-      id: userId,
-      email,
-      profile: {
-        create: { email },
-      },
-      userRoles: {
-        create: { roleId: viewerRole.id },
-      },
-    },
-    include: {
-      userRoles: { include: { role: true } },
-      profile: true,
-    },
-  });
-
-  if (user.userRoles.length > 0) {
-    return user;
-  }
-
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
-        userId,
-        roleId: viewerRole.id,
-      },
-    },
-    update: {},
-    create: {
-      userId,
-      roleId: viewerRole.id,
-    },
-  });
-
-  return loadUserWithRole(userId);
-}
-
-export async function getCurrentUser(): Promise<AuthUser | null> {
+export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
   try {
     const supabase = await createClient();
 
@@ -88,9 +44,22 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     if (!supabaseUser) return null;
 
     const email = supabaseUser.email ?? `${supabaseUser.id}@users.local`;
-    const userWithRole =
-      (await loadUserWithRole(supabaseUser.id)) ??
-      (await ensureUserRecord(supabaseUser.id, email));
+    let userWithRole = await loadUserWithRole(supabaseUser.id);
+
+    const roleNames = userWithRole?.userRoles.map((item) => item.role.name) ?? [];
+    const shouldSyncUserRecord =
+      !userWithRole ||
+      userWithRole.email !== email ||
+      !userWithRole.profile ||
+      roleNames.length === 0 ||
+      (isConfiguredAdminEmail(email) && !roleNames.includes("admin"));
+
+    if (shouldSyncUserRecord) {
+      userWithRole = await syncAuthUserRecord({
+        userId: supabaseUser.id,
+        email,
+      });
+    }
 
     if (!userWithRole) return null;
 
@@ -115,7 +84,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     console.error("Error getting current user:", error);
     return null;
   }
-}
+});
 
 export async function requireAuth(): Promise<AuthUser> {
   const user = await getCurrentUser();
