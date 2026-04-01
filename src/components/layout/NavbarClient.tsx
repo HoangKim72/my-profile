@@ -27,6 +27,22 @@ function mapAuthUser(email: string | undefined, id: string): AuthUser {
   };
 }
 
+async function loadCurrentUserFromServer() {
+  const response = await fetch("/api/auth/me", {
+    method: "GET",
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as { user?: AuthUser | null };
+
+  return data.user ?? null;
+}
+
 export function NavbarClient({ initialUser = null }: NavbarClientProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -48,10 +64,22 @@ export function NavbarClient({ initialUser = null }: NavbarClientProps) {
         return;
       }
 
+      if (!supabaseUser) {
+        setUser(null);
+        setIsAuthReady(true);
+        return;
+      }
+
+      const serverUser = await loadCurrentUserFromServer();
+
+      if (!isMounted) {
+        return;
+      }
+
       setUser(
-        supabaseUser
-          ? mapAuthUser(supabaseUser.email, supabaseUser.id)
-          : null,
+        serverUser?.id === supabaseUser.id
+          ? serverUser
+          : mapAuthUser(supabaseUser.email, supabaseUser.id),
       );
       setIsAuthReady(true);
     };
@@ -61,16 +89,34 @@ export function NavbarClient({ initialUser = null }: NavbarClientProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      const syncSessionUser = async () => {
+        if (!session?.user) {
+          if (isMounted) {
+            setUser(null);
+            setIsAuthReady(true);
+          }
+          return;
+        }
+
+        const serverUser = await loadCurrentUserFromServer();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setUser(
+          serverUser?.id === session.user.id
+            ? serverUser
+            : mapAuthUser(session.user.email, session.user.id),
+        );
+        setIsAuthReady(true);
+      };
+
       if (!isMounted) {
         return;
       }
 
-      setUser(
-        session?.user
-          ? mapAuthUser(session.user.email, session.user.id)
-          : null,
-      );
-      setIsAuthReady(true);
+      void syncSessionUser();
     });
 
     return () => {
