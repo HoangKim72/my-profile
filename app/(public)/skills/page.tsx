@@ -5,7 +5,8 @@ import { getSkillsPageData } from "@/lib/skills/data";
 
 export const metadata: Metadata = {
   title: "Skills",
-  description: "Skills duoc tong hop tu GitHub, WakaTime va lop manual",
+  description:
+    "Skills duoc tong hop tu GitHub, project evidence, WakaTime va lop manual",
 };
 
 export const dynamic = "force-dynamic";

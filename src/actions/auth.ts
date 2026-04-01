@@ -16,7 +16,7 @@ import {
   type AuthActionState,
 } from "@/lib/validators/auth";
 
-const MIN_HUMAN_FORM_FILL_MS = 1200;
+const MIN_HUMAN_FORM_FILL_MS = 120;
 const GENERIC_SIGN_IN_ERROR = "Email hoặc mật khẩu không đúng.";
 const GENERIC_SIGN_UP_ERROR =
   "Không thể tạo tài khoản với thông tin này. Vui lòng thử lại.";

@@ -2,6 +2,8 @@ import "server-only";
 
 import type {
   GitHubProjectSpotlight,
+  SkillEvidenceProject,
+  SkillCategory,
   SkillTechCard,
   SkillsActivityInsight,
   SkillsLanguageItem,
@@ -11,6 +13,7 @@ import type {
   SkillsSourceState,
   SkillsToolItem,
 } from "@/lib/skills/types";
+import { prisma } from "@/lib/db/prisma";
 import type { ResumeProfileSource } from "@/lib/profile/resume-view";
 
 const GITHUB_REVALIDATE_SECONDS = 60 * 60 * 6;
@@ -40,41 +43,202 @@ const DEFAULT_SOFT_SKILLS: SkillsSoftSkill[] = [
 ];
 
 const TECH_DEFINITIONS = [
-  { label: "TypeScript", category: "core", tokens: ["typescript", "ts"] },
-  { label: "JavaScript", category: "core", tokens: ["javascript", "js"] },
-  { label: "React", category: "core", tokens: ["react"] },
-  { label: "Next.js", category: "core", tokens: ["next", "nextjs"] },
-  { label: "Node.js", category: "core", tokens: ["node", "nodejs"] },
-  { label: "Tailwind CSS", category: "core", tokens: ["tailwind", "tailwindcss"] },
-  { label: "HTML", category: "core", tokens: ["html"] },
-  { label: "CSS", category: "core", tokens: ["css"] },
-  { label: "PostgreSQL", category: "core", tokens: ["postgres", "postgresql", "pg"] },
-  { label: "Prisma", category: "core", tokens: ["prisma"] },
-  { label: "Supabase", category: "core", tokens: ["supabase"] },
-  { label: "Express", category: "core", tokens: ["express"] },
-  { label: "NestJS", category: "core", tokens: ["nest", "nestjs"] },
-  { label: "REST API", category: "core", tokens: ["rest", "restapi"] },
-  { label: "GraphQL", category: "core", tokens: ["graphql", "apollo"] },
-  { label: "Python", category: "core", tokens: ["python", "py"] },
-  { label: "FastAPI", category: "core", tokens: ["fastapi"] },
-  { label: "Django", category: "core", tokens: ["django"] },
-  { label: "MongoDB", category: "core", tokens: ["mongodb", "mongoose"] },
-  { label: "Docker", category: "tool", tokens: ["docker", "dockerfile", "dockercompose"] },
-  { label: "Vercel", category: "tool", tokens: ["vercel"] },
-  { label: "Git", category: "tool", tokens: ["git"] },
+  {
+    label: "TypeScript",
+    category: "core",
+    group: "language",
+    summary: "Typed foundation cho app logic va component contracts.",
+    tokens: ["typescript", "ts"],
+  },
+  {
+    label: "JavaScript",
+    category: "core",
+    group: "language",
+    summary: "Ngon ngu nen cho scripting, browser behavior va app flows.",
+    tokens: ["javascript", "js"],
+  },
+  {
+    label: "React",
+    category: "core",
+    group: "frontend",
+    summary: "Build giao dien tuong tac voi component-based UI.",
+    tokens: ["react"],
+  },
+  {
+    label: "Next.js",
+    category: "core",
+    group: "frontend",
+    summary: "Full-stack React framework cho routing, data loading va delivery.",
+    tokens: ["next", "nextjs"],
+  },
+  {
+    label: "Node.js",
+    category: "core",
+    group: "backend",
+    summary: "Runtime cho API, scripts va server-side application logic.",
+    tokens: ["node", "nodejs"],
+  },
+  {
+    label: "Tailwind CSS",
+    category: "core",
+    group: "frontend",
+    summary: "Utility-first styling cho responsive UI systems.",
+    tokens: ["tailwind", "tailwindcss"],
+  },
+  {
+    label: "HTML",
+    category: "core",
+    group: "frontend",
+    summary: "Semantic structure va content scaffolding cho giao dien.",
+    tokens: ["html"],
+  },
+  {
+    label: "CSS",
+    category: "core",
+    group: "frontend",
+    summary: "Layout, motion va visual presentation cho interfaces.",
+    tokens: ["css"],
+  },
+  {
+    label: "PostgreSQL",
+    category: "core",
+    group: "database",
+    summary: "Relational data modeling, queries va persistence co cau truc.",
+    tokens: ["postgres", "postgresql", "pg"],
+  },
+  {
+    label: "Prisma",
+    category: "core",
+    group: "database",
+    summary: "Typed ORM va schema-driven database workflows.",
+    tokens: ["prisma"],
+  },
+  {
+    label: "Supabase",
+    category: "core",
+    group: "backend",
+    summary: "Backend services cho auth, storage va Postgres-powered apps.",
+    tokens: ["supabase"],
+  },
+  {
+    label: "Express",
+    category: "core",
+    group: "backend",
+    summary: "Lightweight HTTP APIs va middleware-based servers.",
+    tokens: ["express"],
+  },
+  {
+    label: "NestJS",
+    category: "core",
+    group: "backend",
+    summary: "Structured backend modules, DI va scalable service layers.",
+    tokens: ["nest", "nestjs"],
+  },
+  {
+    label: "REST API",
+    category: "core",
+    group: "backend",
+    summary: "Resource-based APIs dung de ket noi app va services.",
+    tokens: ["rest", "restapi"],
+  },
+  {
+    label: "GraphQL",
+    category: "core",
+    group: "backend",
+    summary: "Typed graph queries cho flexible client data access.",
+    tokens: ["graphql", "apollo"],
+  },
+  {
+    label: "Python",
+    category: "core",
+    group: "language",
+    summary: "General-purpose scripting, automation va backend logic.",
+    tokens: ["python", "py"],
+  },
+  {
+    label: "PHP",
+    category: "core",
+    group: "backend",
+    summary: "Server-side web workflows va traditional application backends.",
+    tokens: ["php"],
+  },
+  {
+    label: "FastAPI",
+    category: "core",
+    group: "backend",
+    summary: "High-performance Python APIs voi typed schemas.",
+    tokens: ["fastapi"],
+  },
+  {
+    label: "Django",
+    category: "core",
+    group: "backend",
+    summary: "Opinionated Python framework cho database-backed applications.",
+    tokens: ["django"],
+  },
+  {
+    label: "MongoDB",
+    category: "core",
+    group: "database",
+    summary: "Document database cho flexible schemas va content-heavy data.",
+    tokens: ["mongodb", "mongoose"],
+  },
+  {
+    label: "Docker",
+    category: "tool",
+    group: "platform",
+    summary: "Containerized delivery va reproducible runtime environments.",
+    tokens: ["docker", "dockerfile", "dockercompose"],
+  },
+  {
+    label: "Vercel",
+    category: "tool",
+    group: "platform",
+    summary: "Deployment platform cho frontend va full-stack web apps.",
+    tokens: ["vercel"],
+  },
+  {
+    label: "Git",
+    category: "tool",
+    group: "tooling",
+    summary: "Version control de track thay doi va phoi hop code.",
+    tokens: ["git"],
+  },
   {
     label: "GitHub Actions",
     category: "tool",
+    group: "platform",
+    summary: "CI/CD pipelines cho automation, checks va releases.",
     tokens: ["githubactions", "actions"],
   },
   {
     label: "VS Code",
     category: "tool",
+    group: "tooling",
+    summary: "Editor workflow cho coding, debugging va daily iteration.",
     tokens: ["vscode", "visualstudiocode"],
   },
-  { label: "Windows", category: "tool", tokens: ["windows"] },
-  { label: "macOS", category: "tool", tokens: ["macos", "macosx", "osx"] },
-  { label: "Linux", category: "tool", tokens: ["linux", "ubuntu"] },
+  {
+    label: "Windows",
+    category: "tool",
+    group: "platform",
+    summary: "Desktop development environment va local testing platform.",
+    tokens: ["windows", "windown"],
+  },
+  {
+    label: "macOS",
+    category: "tool",
+    group: "platform",
+    summary: "Unix-based local environment cho product development.",
+    tokens: ["macos", "macosx", "osx"],
+  },
+  {
+    label: "Linux",
+    category: "tool",
+    group: "platform",
+    summary: "Server-friendly environment cho deployment va tooling.",
+    tokens: ["linux", "ubuntu"],
+  },
 ] as const;
 
 const TECH_TOKEN_MAP = buildTechTokenMap();
@@ -89,12 +253,24 @@ const CORE_TECH_PRIORITY = [
   "Supabase",
   "Tailwind CSS",
   "Python",
+  "PHP",
   "Express",
   "NestJS",
   "GraphQL",
   "REST API",
   "Docker",
 ] as const;
+
+const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
+  frontend: "Frontend",
+  backend: "Backend",
+  database: "Database",
+  language: "Language",
+  platform: "Platform",
+  tooling: "Tooling",
+  workflow: "Workflow",
+  other: "Other",
+};
 
 interface GitHubRepoResponse {
   name: string;
@@ -120,6 +296,22 @@ interface GitHubSkillSnapshot {
   coreTechStack: SkillTechCard[];
   toolMap: Map<string, SkillsToolItem>;
   projects: GitHubProjectSpotlight[];
+}
+
+interface ProjectArchiveRow {
+  slug: string;
+  title: string;
+  shortDescription: string;
+  subjectName: string;
+  techStack: string;
+  githubUrl: string | null;
+  demoUrl: string | null;
+  createdAt: Date;
+}
+
+interface ProjectArchiveSkillSnapshot {
+  scannedProjectCount: number;
+  coreTechStack: SkillTechCard[];
 }
 
 interface WakaTimeSummaryItem {
@@ -171,13 +363,16 @@ export async function getSkillsPageData(
   profile: ResumeProfileSource | null | undefined,
 ): Promise<SkillsPageData> {
   const githubUsername = resolveGitHubUsername(profile?.githubUrl);
-  const [githubResult, wakatimeResult] = await Promise.allSettled([
+  const [githubResult, projectResult, wakatimeResult] = await Promise.allSettled([
     githubUsername ? getGitHubSkillSnapshot(githubUsername) : Promise.resolve(null),
+    getProjectArchiveSkillSnapshot(),
     getWakaTimeSkillSnapshot(),
   ]);
 
   const githubSnapshot =
     githubResult.status === "fulfilled" ? githubResult.value : null;
+  const projectSnapshot =
+    projectResult.status === "fulfilled" ? projectResult.value : null;
   const wakatimeSnapshot =
     wakatimeResult.status === "fulfilled" ? wakatimeResult.value : null;
 
@@ -186,6 +381,13 @@ export async function getSkillsPageData(
     snapshot: githubSnapshot,
     error:
       githubResult.status === "rejected" ? getErrorMessage(githubResult.reason) : null,
+  });
+  const projectState = buildProjectState({
+    snapshot: projectSnapshot,
+    error:
+      projectResult.status === "rejected"
+        ? getErrorMessage(projectResult.reason)
+        : null,
   });
   const wakatimeState = buildWakaTimeState({
     snapshot: wakatimeSnapshot,
@@ -197,6 +399,7 @@ export async function getSkillsPageData(
 
   const coreTechStack = mergeCoreTechStack({
     githubTechStack: githubSnapshot?.coreTechStack ?? [],
+    projectTechStack: projectSnapshot?.coreTechStack ?? [],
     wakaRange: wakatimeSnapshot?.lastThirtyDays ?? null,
   });
   const toolsAndEnvironment = buildToolsAndEnvironment({
@@ -210,6 +413,7 @@ export async function getSkillsPageData(
   );
   const overviewStats = buildOverviewStats({
     githubSnapshot,
+    projectSnapshot,
     wakatimeSnapshot,
     softSkillsCount: softSkills.length,
     coreTechCount: coreTechStack.length,
@@ -217,6 +421,7 @@ export async function getSkillsPageData(
 
   return {
     githubState,
+    projectState,
     wakatimeState,
     overviewStats,
     coreTechStack,
@@ -283,28 +488,38 @@ async function getGitHubSkillSnapshot(
     }),
   );
 
-  const techEvidence = new Map<string, Set<string>>();
-  const repoLinks = new Map<string, Map<string, string>>();
+  const techEvidence = new Map<string, Map<string, SkillEvidenceProject>>();
   const toolMap = new Map<string, SkillsToolItem>();
 
   repoAnalyses.forEach((repo) => {
     repo.techNames.forEach((techName) => {
-      const existingRepos = techEvidence.get(techName) ?? new Set<string>();
-      existingRepos.add(repo.name);
-      techEvidence.set(techName, existingRepos);
-
-      const existingLinks = repoLinks.get(techName) ?? new Map<string, string>();
-      existingLinks.set(repo.name, repo.url);
-      repoLinks.set(techName, existingLinks);
+      const existingEvidence = techEvidence.get(techName) ?? new Map();
+      existingEvidence.set(`github:${repo.name}`, {
+        name: repo.name,
+        href: repo.homepageUrl || repo.url,
+        description:
+          repo.description ||
+          `Project evidence tu GitHub cho ${techName.toLowerCase()}.`,
+        kindLabel: repo.homepageUrl ? "Production project" : "GitHub repo",
+        isExternal: true,
+        badges: buildGitHubEvidenceBadges(repo),
+        supportingText: repo.homepageUrl
+          ? "Co deploy production hoac preview de xem nhanh."
+          : "Mo repo de xem implementation chi tiet.",
+        updatedAt: repo.updatedAtValue,
+        updatedAtLabel: repo.updatedAtLabel,
+      });
+      techEvidence.set(techName, existingEvidence);
 
       if (getTechCategory(techName) === "tool") {
+        const evidenceProjects = Array.from(existingEvidence.values());
         toolMap.set(techName, {
           name: techName,
           category: "GitHub signal",
           usagePercent: null,
           usageText: null,
-          projectCount: existingRepos.size,
-          detail: `${existingRepos.size} repo dùng ${techName}`,
+          projectCount: evidenceProjects.length,
+          detail: `${evidenceProjects.length} project signal co ${techName}`,
         });
       }
     });
@@ -323,19 +538,15 @@ async function getGitHubSkillSnapshot(
 
   const coreTechStack = Array.from(techEvidence.entries())
     .filter(([techName]) => getTechCategory(techName) === "core")
-    .map(([techName, reposForTech]) => ({
-      name: techName,
-      projectCount: reposForTech.size,
-      usagePercent: null,
-      usageText: null,
-      sourceLabels: ["GitHub"],
-      evidenceRepos: Array.from(repoLinks.get(techName)?.entries() ?? []).map(
-        ([name, url]) => ({
-          name,
-          url,
-        }),
-      ),
-    }))
+    .map(([techName, evidenceMap]) =>
+      createSkillCard({
+        name: techName,
+        usagePercent: null,
+        usageText: null,
+        sourceLabels: ["GitHub"],
+        evidenceProjects: Array.from(evidenceMap.values()),
+      }),
+    )
     .sort(compareTechCards)
     .slice(0, 12);
 
@@ -358,6 +569,80 @@ async function getGitHubSkillSnapshot(
     coreTechStack,
     toolMap,
     projects,
+  };
+}
+
+async function getProjectArchiveSkillSnapshot(): Promise<ProjectArchiveSkillSnapshot | null> {
+  const projects = await prisma.project.findMany({
+    where: {
+      visibility: "PUBLIC",
+      status: "PUBLISHED",
+      files: {
+        some: {},
+      },
+    },
+    select: {
+      slug: true,
+      title: true,
+      shortDescription: true,
+      subjectName: true,
+      techStack: true,
+      githubUrl: true,
+      demoUrl: true,
+      createdAt: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 24,
+  });
+
+  if (projects.length === 0) {
+    return null;
+  }
+
+  const techEvidence = new Map<string, Map<string, SkillEvidenceProject>>();
+
+  projects.forEach((project) => {
+    const techNames = collectProjectArchiveTechNames(project);
+
+    techNames.forEach((techName) => {
+      if (getTechCategory(techName) !== "core") {
+        return;
+      }
+
+      const existingEvidence = techEvidence.get(techName) ?? new Map();
+      existingEvidence.set(`project:${project.slug}`, {
+        name: project.title,
+        href: `/projects/${project.slug}`,
+        description: project.shortDescription,
+        kindLabel: "Shared folder",
+        isExternal: false,
+        badges: buildProjectArchiveBadges(project),
+        supportingText: project.subjectName,
+        updatedAt: project.createdAt.toISOString(),
+        updatedAtLabel: formatDateLabel(project.createdAt),
+      });
+      techEvidence.set(techName, existingEvidence);
+    });
+  });
+
+  const coreTechStack = Array.from(techEvidence.entries())
+    .map(([techName, evidenceMap]) =>
+      createSkillCard({
+        name: techName,
+        usagePercent: null,
+        usageText: null,
+        sourceLabels: ["Projects"],
+        evidenceProjects: Array.from(evidenceMap.values()),
+      }),
+    )
+    .sort(compareTechCards)
+    .slice(0, 12);
+
+  return {
+    scannedProjectCount: projects.length,
+    coreTechStack,
   };
 }
 
@@ -474,16 +759,17 @@ function aggregateSummaryDimension(
 
 function mergeCoreTechStack({
   githubTechStack,
+  projectTechStack,
   wakaRange,
 }: {
   githubTechStack: SkillTechCard[];
+  projectTechStack: SkillTechCard[];
   wakaRange: WakaTimeAggregateRange | null;
 }) {
   const merged = new Map<string, SkillTechCard>();
 
-  githubTechStack.forEach((tech) => {
-    merged.set(tech.name, { ...tech });
-  });
+  mergeSkillCardCollection(merged, githubTechStack);
+  mergeSkillCardCollection(merged, projectTechStack);
 
   const wakaUsage = new Map<
     string,
@@ -523,12 +809,17 @@ function mergeCoreTechStack({
     }
 
     merged.set(techName, {
-      name: techName,
+      ...createSkillCard({
+        name: techName,
+        evidenceProjects: [],
+        sourceLabels: ["WakaTime"],
+        usagePercent: usage.percent,
+        usageText: usage.usageText,
+      }),
       projectCount: 0,
       usagePercent: usage.percent,
       usageText: usage.usageText,
       sourceLabels: ["WakaTime"],
-      evidenceRepos: [],
     });
   });
 
@@ -630,11 +921,13 @@ function buildActivityInsights(
 
 function buildOverviewStats({
   githubSnapshot,
+  projectSnapshot,
   wakatimeSnapshot,
   softSkillsCount,
   coreTechCount,
 }: {
   githubSnapshot: GitHubSkillSnapshot | null;
+  projectSnapshot: ProjectArchiveSkillSnapshot | null;
   wakatimeSnapshot: WakaTimeSkillSnapshot | null;
   softSkillsCount: number;
   coreTechCount: number;
@@ -643,7 +936,7 @@ function buildOverviewStats({
     {
       label: "Core stack hợp nhất",
       value: String(coreTechCount),
-      description: "Số tech đang được tổng hợp từ GitHub và WakaTime.",
+      description: "Số tech đang được tổng hợp từ GitHub, project evidence va WakaTime.",
     },
     {
       label: "Soft skills thủ công",
@@ -665,6 +958,14 @@ function buildOverviewStats({
       label: "Tracked time 30 ngày",
       value: wakatimeSnapshot.lastThirtyDays.totalText,
       description: "Tổng thời gian coding WakaTime ghi nhận trong 30 ngày gần nhất.",
+    });
+  }
+
+  if (projectSnapshot) {
+    stats.push({
+      label: "Project archive mapped",
+      value: String(projectSnapshot.scannedProjectCount),
+      description: "So project cong khai dang duoc link lai lam evidence trong Skills.",
     });
   }
 
@@ -751,8 +1052,49 @@ function buildWakaTimeState({
   };
 }
 
+function buildProjectState({
+  snapshot,
+  error,
+}: {
+  snapshot: ProjectArchiveSkillSnapshot | null;
+  error: string | null;
+}): SkillsSourceState {
+  if (error) {
+    return {
+      label: "Project archive dang loi",
+      status: "error",
+      description: truncateText(error, 140),
+    };
+  }
+
+  if (!snapshot) {
+    return {
+      label: "Project archive trong",
+      status: "empty",
+      description: "Chua co project cong khai nao de gan vao skill evidence.",
+    };
+  }
+
+  return {
+    label: "Project archive san sang",
+    status: "ready",
+    description: `Da map ${snapshot.scannedProjectCount} project cong khai de giu duong dan vao archive du khong con o navbar.`,
+  };
+}
+
 function buildSoftSkills(): SkillsSoftSkill[] {
   return DEFAULT_SOFT_SKILLS;
+}
+
+function collectProjectArchiveTechNames(project: ProjectArchiveRow) {
+  return collectTechNamesFromTokens(
+    [
+      project.title,
+      project.subjectName,
+      project.techStack,
+      project.shortDescription,
+    ].flatMap(tokenizeTechInput),
+  );
 }
 
 function collectGitHubTechNames({
@@ -785,6 +1127,220 @@ function collectGitHubTechNames({
   });
 
   return techNames;
+}
+
+function collectTechNamesFromTokens(tokens: string[]) {
+  const techNames = new Set<string>();
+
+  tokens.forEach((token) => {
+    const techName = resolveTechLabel(token);
+
+    if (techName) {
+      techNames.add(techName);
+    }
+  });
+
+  return techNames;
+}
+
+function tokenizeTechInput(value: string) {
+  return value
+    .split(/[\s,;/(){}[\]|:_-]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildGitHubEvidenceBadges(repo: {
+  homepageUrl: string | null;
+  primaryLanguage: string | null;
+  updatedAtValue: string;
+}) {
+  const badges = new Set<string>();
+
+  if (repo.homepageUrl) {
+    badges.add("Production");
+  }
+
+  if (isRecentDate(repo.updatedAtValue)) {
+    badges.add("Recent");
+  }
+
+  if (repo.primaryLanguage) {
+    badges.add(repo.primaryLanguage);
+  }
+
+  return Array.from(badges).slice(0, 3);
+}
+
+function buildProjectArchiveBadges(project: ProjectArchiveRow) {
+  const badges = new Set<string>(["Archive"]);
+
+  if (project.demoUrl?.trim()) {
+    badges.add("Live demo");
+  }
+
+  if (project.githubUrl?.trim()) {
+    badges.add("GitHub");
+  }
+
+  if (isRecentDate(project.createdAt)) {
+    badges.add("Recent");
+  }
+
+  return Array.from(badges);
+}
+
+function createSkillCard({
+  name,
+  usagePercent,
+  usageText,
+  sourceLabels,
+  evidenceProjects,
+}: {
+  name: string;
+  usagePercent: number | null;
+  usageText: string | null;
+  sourceLabels: string[];
+  evidenceProjects: SkillEvidenceProject[];
+}): SkillTechCard {
+  const dedupedEvidenceProjects = dedupeEvidenceProjects(evidenceProjects);
+  const latestActivity = pickLatestActivityInfo(dedupedEvidenceProjects);
+  const category = getSkillCategory(name);
+
+  return {
+    name,
+    summary: getSkillSummary(name),
+    category,
+    categoryLabel: SKILL_CATEGORY_LABELS[category],
+    projectCount: dedupedEvidenceProjects.length,
+    usagePercent,
+    usageText,
+    sourceLabels: sortSourceLabels(sourceLabels),
+    evidenceProjects: dedupedEvidenceProjects,
+    latestActivityAt: latestActivity.value,
+    latestActivityLabel: latestActivity.label,
+  };
+}
+
+function mergeSkillCardCollection(
+  merged: Map<string, SkillTechCard>,
+  items: SkillTechCard[],
+) {
+  items.forEach((item) => {
+    const existing = merged.get(item.name);
+
+    if (!existing) {
+      merged.set(item.name, {
+        ...item,
+        sourceLabels: [...item.sourceLabels],
+        evidenceProjects: [...item.evidenceProjects],
+      });
+      return;
+    }
+
+    merged.set(item.name, mergeSkillCards(existing, item));
+  });
+}
+
+function mergeSkillCards(left: SkillTechCard, right: SkillTechCard): SkillTechCard {
+  const evidenceProjects = dedupeEvidenceProjects([
+    ...left.evidenceProjects,
+    ...right.evidenceProjects,
+  ]);
+  const usage = pickUsageSignal(left, right);
+  const latestActivity = pickLatestActivityInfo(evidenceProjects);
+
+  return {
+    ...left,
+    summary: left.summary || right.summary,
+    category: left.category,
+    categoryLabel: left.categoryLabel,
+    projectCount: evidenceProjects.length,
+    usagePercent: usage.percent,
+    usageText: usage.text,
+    sourceLabels: sortSourceLabels([...left.sourceLabels, ...right.sourceLabels]),
+    evidenceProjects,
+    latestActivityAt: latestActivity.value,
+    latestActivityLabel: latestActivity.label,
+  };
+}
+
+function pickUsageSignal(left: SkillTechCard, right: SkillTechCard) {
+  if (right.usagePercent === null && right.usageText === null) {
+    return {
+      percent: left.usagePercent,
+      text: left.usageText,
+    };
+  }
+
+  if (left.usagePercent === null && left.usageText === null) {
+    return {
+      percent: right.usagePercent,
+      text: right.usageText,
+    };
+  }
+
+  if ((right.usagePercent ?? 0) > (left.usagePercent ?? 0)) {
+    return {
+      percent: right.usagePercent,
+      text: right.usageText,
+    };
+  }
+
+  return {
+    percent: left.usagePercent,
+    text: left.usageText,
+  };
+}
+
+function pickLatestActivityInfo(evidenceProjects: SkillEvidenceProject[]) {
+  const latestProject = evidenceProjects
+    .filter((project) => Boolean(project.updatedAt))
+    .sort((left, right) => {
+      return (right.updatedAt ?? "").localeCompare(left.updatedAt ?? "");
+    })[0];
+
+  return {
+    value: latestProject?.updatedAt ?? null,
+    label: latestProject?.updatedAtLabel ?? null,
+  };
+}
+
+function dedupeEvidenceProjects(evidenceProjects: SkillEvidenceProject[]) {
+  const deduped = new Map<string, SkillEvidenceProject>();
+
+  evidenceProjects.forEach((project) => {
+    const key = `${project.isExternal ? "external" : "internal"}:${project.href}`;
+    deduped.set(key, project);
+  });
+
+  return Array.from(deduped.values()).sort((left, right) => {
+    if ((right.updatedAt ?? "") !== (left.updatedAt ?? "")) {
+      return (right.updatedAt ?? "").localeCompare(left.updatedAt ?? "");
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function sortSourceLabels(sourceLabels: string[]) {
+  const order = new Map(
+    ["GitHub", "Projects", "WakaTime"].map((label, index) => [label, index]),
+  );
+
+  return Array.from(new Set(sourceLabels)).sort((left, right) => {
+    return (order.get(left) ?? 99) - (order.get(right) ?? 99);
+  });
+}
+
+function isRecentDate(value: string | Date, recentDays = 120) {
+  const time = new Date(value).getTime();
+
+  if (!Number.isFinite(time)) {
+    return false;
+  }
+
+  return Date.now() - time <= recentDays * 24 * 60 * 60 * 1000;
 }
 
 function extractPackageDependencies(packageJson: Record<string, unknown> | null) {
@@ -874,7 +1430,7 @@ function buildTechTokenMap() {
 
   TECH_DEFINITIONS.forEach((definition) => {
     definition.tokens.forEach((token) => {
-      tokenMap.set(token, definition);
+      tokenMap.set(normalizeTechToken(token), definition);
     });
   });
 
@@ -899,6 +1455,20 @@ function getTechCategory(techName: string) {
   return (
     TECH_DEFINITIONS.find((definition) => definition.label === techName)?.category ??
     "core"
+  );
+}
+
+function getSkillCategory(techName: string): SkillCategory {
+  return (
+    TECH_DEFINITIONS.find((definition) => definition.label === techName)?.group ??
+    "other"
+  );
+}
+
+function getSkillSummary(techName: string) {
+  return (
+    TECH_DEFINITIONS.find((definition) => definition.label === techName)?.summary ??
+    "Project-backed skill signal duoc tong hop tu code, telemetry va archive."
   );
 }
 
@@ -942,7 +1512,7 @@ function getCoreTechPriority(techName: string) {
   return index === -1 ? CORE_TECH_PRIORITY.length + 1 : index;
 }
 
-function formatDateLabel(value: string) {
+function formatDateLabel(value: string | Date) {
   return new Date(value).toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",

@@ -1,20 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Activity,
   ArrowUpRight,
+  ArrowDownWideNarrow,
   BarChart3,
   BookOpenCheck,
   Clock3,
+  FolderKanban,
   Github,
   Layers3,
+  ListFilter,
+  MousePointer2,
   Sparkles,
   TimerReset,
   Wrench,
 } from "lucide-react";
 import type {
   GitHubProjectSpotlight,
+  SkillCategory,
+  SkillEvidenceProject,
   SkillTechCard,
   SkillsActivityInsight,
   SkillsLanguageItem,
@@ -52,10 +59,24 @@ export function SkillsShowcase({ data }: SkillsShowcaseProps) {
                   Skills thật từ dự án và thời gian làm việc
                 </h1>
                 <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">
-                  GitHub cho biết mình đã build gì. WakaTime cho biết mình đang
-                  dùng gì nhiều. Phần manual giữ lại cách làm việc và soft
-                  skills không thể tự động hóa hoàn toàn.
+                  GitHub cho biết mình đã build gì. Project archive giữ đường
+                  dẫn vào từng case cụ thể. WakaTime cho biết mình đang dùng gì
+                  nhiều. Phần manual giữ lại cách làm việc và soft skills không
+                  thể tự động hóa hoàn toàn.
                 </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100">
+                    <MousePointer2 size={15} />
+                    Hover desktop hoac tap mobile de mo project evidence
+                  </div>
+                  <Link
+                    href="/projects"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/30 hover:text-white"
+                  >
+                    Mở project archive
+                    <ArrowUpRight size={15} />
+                  </Link>
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -66,11 +87,16 @@ export function SkillsShowcase({ data }: SkillsShowcaseProps) {
             </div>
           </header>
 
-          <div className="relative mt-8 grid gap-4 lg:grid-cols-2">
+          <div className="relative mt-8 grid gap-4 xl:grid-cols-3">
             <SourceStatusCard
               title="GitHub Signal"
               icon={Github}
               state={data.githubState}
+            />
+            <SourceStatusCard
+              title="Project Archive"
+              icon={FolderKanban}
+              state={data.projectState}
             />
             <SourceStatusCard
               title="WakaTime Signal"
@@ -103,7 +129,7 @@ export function SkillsShowcase({ data }: SkillsShowcaseProps) {
                 <SectionHeader
                   eyebrow="Core Tech Stack"
                   title="Tech stack hợp nhất"
-                  description="Card skill hiển thị số project từ GitHub, usage signal từ WakaTime và tooltip evidence khi hover."
+                  description="Mỗi card ưu tiên tên skill, usage, số project va danh sach project evidence. Filter va sort dat ngay tren grid de tra cuu nhanh."
                 />
                 <SkillCardGrid
                   items={data.coreTechStack}
@@ -160,7 +186,7 @@ export function SkillsShowcase({ data }: SkillsShowcaseProps) {
                 <SectionHeader
                   eyebrow="GitHub-based"
                   title="Tech stack theo dự án"
-                  description="Tập trung vào số project và repo evidence từ GitHub. Đây là lớp dữ liệu trả lời câu hỏi: mình đã build gì."
+                  description="Tập trung vào project evidence tu GitHub repo, cho thay skill nao da duoc dung va dung trong nhung repo nao."
                 />
                 <SkillCardGrid
                   items={data.githubTechStack}
@@ -335,37 +361,136 @@ function SkillCardGrid({
   items: SkillTechCard[];
   emptyText: string;
 }) {
+  const [activeFilter, setActiveFilter] = useState<SkillFilter>("all");
+  const [sortBy, setSortBy] = useState<SkillSort>("most-used");
+
   if (items.length === 0) {
     return <EmptyState text={emptyText} />;
   }
 
+  const filterOptions = buildSkillFilterOptions(items);
+  const filteredItems = sortSkillCards(
+    items.filter((item) => activeFilter === "all" || item.category === activeFilter),
+    sortBy,
+  );
+
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {items.map((item) => (
-        <SkillSignalCard key={item.name} item={item} />
-      ))}
+    <div className="space-y-5">
+      <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/40 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+              <ListFilter size={14} />
+              Filter skills
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {filterOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setActiveFilter(option.value)}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    activeFilter === option.value
+                      ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-100"
+                      : "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-cyan-400/25 hover:text-white"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="block min-w-[14rem]">
+            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+              <ArrowDownWideNarrow size={14} />
+              Sort skills
+            </span>
+            <select
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SkillSort)}
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm font-medium text-slate-100 outline-none transition focus:border-cyan-400/40"
+            >
+              {SKILL_SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <p className="mt-4 text-sm text-slate-400">
+          Hiển thị {filteredItems.length}/{items.length} skills trong view này.
+        </p>
+      </div>
+
+      {filteredItems.length > 0 ? (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {filteredItems.map((item) => (
+            <SkillSignalCard key={item.name} item={item} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState text="Không có skill nào khớp filter hiện tại." />
+      )}
     </div>
   );
 }
 
 function SkillSignalCard({ item }: { item: SkillTechCard }) {
-  const hasTooltip = item.evidenceRepos.length > 0 || item.usageText;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasEvidence = item.evidenceProjects.length > 0;
+  const usageValue =
+    item.usagePercent !== null
+      ? `${item.usagePercent.toFixed(1)}%`
+      : item.projectCount > 0
+        ? "Project-backed"
+        : "Usage-based";
+  const usageDetail =
+    item.usageText ??
+    (item.projectCount > 0
+      ? "Duoc chung minh bang project evidence."
+      : "Dang cho them usage signal.");
 
   return (
     <div className="group relative" tabIndex={0}>
-      <div className="h-full rounded-[1.5rem] border border-slate-800 bg-[linear-gradient(180deg,_rgba(8,20,38,0.96)_0%,_rgba(4,12,26,0.96)_100%)] p-5 transition duration-200 hover:border-cyan-400/25 hover:shadow-[0_18px_50px_-28px_rgba(34,211,238,0.38)] focus-within:border-cyan-400/25">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xl font-bold text-white">{item.name}</p>
-            <p className="mt-2 text-sm text-slate-300">
-              {item.projectCount > 0
-                ? `${item.projectCount} project signal từ GitHub`
-                : "Usage-based signal từ WakaTime"}
-            </p>
-          </div>
-          <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+      <div className="h-full rounded-[1.5rem] border border-slate-800 bg-[linear-gradient(180deg,_rgba(8,20,38,0.98)_0%,_rgba(4,12,26,0.98)_100%)] p-5 transition duration-200 hover:border-cyan-400/25 hover:shadow-[0_18px_50px_-28px_rgba(34,211,238,0.38)] focus-within:border-cyan-400/25">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">
+            {item.categoryLabel}
+          </span>
+          <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
             {item.sourceLabels.join(" + ")}
-          </div>
+          </span>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-2xl font-black tracking-tight text-white">
+            {item.name}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">{item.summary}</p>
+        </div>
+
+        <p className="mt-4 text-sm font-medium text-slate-200">
+          {buildSkillSignalSummary(item)}
+        </p>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <SignalMetric
+            label="Usage"
+            value={usageValue}
+            description={usageDetail}
+          />
+          <SignalMetric
+            label="Projects"
+            value={`${item.projectCount}`}
+            description={
+              item.projectCount > 0
+                ? `${item.projectCount} project evidence dang ho tro skill nay.`
+                : "Chua co project evidence duoc map."
+            }
+          />
         </div>
 
         {item.usagePercent !== null ? (
@@ -386,57 +511,243 @@ function SkillSignalCard({ item }: { item: SkillTechCard }) {
         ) : null}
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {item.projectCount > 0 ? (
+          {item.latestActivityLabel ? (
             <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
-              {item.projectCount} projects
+              Active {item.latestActivityLabel}
             </span>
           ) : null}
-          {item.usageText ? (
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-100">
-              {item.usageText}
-            </span>
-          ) : null}
-          {hasTooltip ? (
+          {hasEvidence ? (
             <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-300">
-              Hover để xem evidence
+              Hover de xem project evidence
+            </span>
+          ) : null}
+          {!hasEvidence && item.usageText ? (
+            <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-100">
+              Usage-only signal
             </span>
           ) : null}
         </div>
+
+        {hasEvidence ? (
+          <button
+            type="button"
+            onClick={() => setIsExpanded((value) => !value)}
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/30 hover:text-white md:hidden"
+          >
+            {isExpanded ? "An project evidence" : "Xem project evidence"}
+            <ArrowUpRight size={14} />
+          </button>
+        ) : null}
       </div>
 
-      {hasTooltip ? (
-        <div className="pointer-events-none absolute left-0 top-full z-20 mt-3 w-[min(22rem,calc(100vw-3rem))] translate-y-2 rounded-[1.25rem] border border-slate-700 bg-[#07101f] p-4 text-sm text-slate-200 opacity-0 shadow-2xl shadow-slate-950/50 transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100">
-          {item.usageText ? (
-            <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/10 px-3 py-2 text-emerald-100">
-              WakaTime signal: {item.usageText}
-            </div>
-          ) : null}
+      {hasEvidence ? (
+        <div className="pointer-events-none absolute left-0 top-full z-20 mt-3 hidden w-[min(24rem,calc(100vw-3rem))] translate-y-2 opacity-0 transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 md:block">
+          <EvidencePanel items={item.evidenceProjects} />
+        </div>
+      ) : null}
 
-          {item.evidenceRepos.length > 0 ? (
-            <div className={item.usageText ? "mt-4" : ""}>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                Repo liên quan
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {item.evidenceRepos.slice(0, 5).map((repo) => (
-                  <a
-                    key={repo.name}
-                    href={repo.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs font-medium text-slate-200 transition hover:border-cyan-400/30 hover:text-white"
-                  >
-                    {repo.name}
-                    <ArrowUpRight size={12} />
-                  </a>
-                ))}
-              </div>
-            </div>
-          ) : null}
+      {hasEvidence && isExpanded ? (
+        <div className="mt-3 md:hidden">
+          <EvidencePanel items={item.evidenceProjects} />
         </div>
       ) : null}
     </div>
   );
+}
+
+type SkillFilter = "all" | SkillCategory;
+type SkillSort = "most-used" | "most-projects" | "recent" | "alphabetical";
+
+const SKILL_SORT_OPTIONS: Array<{ value: SkillSort; label: string }> = [
+  { value: "most-used", label: "Most used" },
+  { value: "most-projects", label: "Most projects" },
+  { value: "recent", label: "Recently active" },
+  { value: "alphabetical", label: "Alphabetical" },
+];
+
+function buildSkillFilterOptions(
+  items: SkillTechCard[],
+): Array<{ value: SkillFilter; label: string }> {
+  const filters = Array.from(
+    new Map(items.map((item) => [item.category, item.categoryLabel])).entries(),
+  );
+
+  return [
+    { value: "all" as const, label: "All" },
+    ...filters.map(([value, label]) => ({
+      value,
+      label,
+    })),
+  ];
+}
+
+function sortSkillCards(items: SkillTechCard[], sortBy: SkillSort) {
+  return [...items].sort((left, right) => {
+    if (sortBy === "alphabetical") {
+      return left.name.localeCompare(right.name);
+    }
+
+    if (sortBy === "recent") {
+      if ((right.latestActivityAt ?? "") !== (left.latestActivityAt ?? "")) {
+        return (right.latestActivityAt ?? "").localeCompare(
+          left.latestActivityAt ?? "",
+        );
+      }
+
+      if ((right.usagePercent ?? 0) !== (left.usagePercent ?? 0)) {
+        return (right.usagePercent ?? 0) - (left.usagePercent ?? 0);
+      }
+
+      return right.projectCount - left.projectCount;
+    }
+
+    if (sortBy === "most-projects") {
+      if (right.projectCount !== left.projectCount) {
+        return right.projectCount - left.projectCount;
+      }
+
+      if ((right.usagePercent ?? 0) !== (left.usagePercent ?? 0)) {
+        return (right.usagePercent ?? 0) - (left.usagePercent ?? 0);
+      }
+
+      return left.name.localeCompare(right.name);
+    }
+
+    if ((right.usagePercent ?? 0) !== (left.usagePercent ?? 0)) {
+      return (right.usagePercent ?? 0) - (left.usagePercent ?? 0);
+    }
+
+    if (right.projectCount !== left.projectCount) {
+      return right.projectCount - left.projectCount;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function buildSkillSignalSummary(item: SkillTechCard) {
+  const parts = [`${item.projectCount} ${item.projectCount === 1 ? "project" : "projects"}`];
+
+  if (item.usageText) {
+    parts.push(item.usageText);
+  }
+
+  parts.push(item.sourceLabels.join(" + "));
+
+  return parts.join(" • ");
+}
+
+function SignalMetric({
+  label,
+  value,
+  description,
+}: {
+  label: string;
+  value: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-[1.25rem] border border-slate-800 bg-slate-950/70 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-3 text-2xl font-bold tracking-tight text-white">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+    </div>
+  );
+}
+
+function EvidencePanel({ items }: { items: SkillEvidenceProject[] }) {
+  return (
+    <div className="rounded-[1.25rem] border border-slate-700 bg-[#07101f] p-4 text-sm text-slate-200 shadow-2xl shadow-slate-950/50">
+      <div className="flex items-start gap-3">
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-100">
+          <FolderKanban size={18} />
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Project evidence
+          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-300">
+            Skill nay da duoc dung trong nhung project sau.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {items.slice(0, 6).map((project) => (
+          <EvidenceProjectRow key={`${project.href}-${project.name}`} item={project} />
+        ))}
+      </div>
+
+      {items.length > 6 ? (
+        <p className="mt-4 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+          +{items.length - 6} project evidence khac
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function EvidenceProjectRow({ item }: { item: SkillEvidenceProject }) {
+  const content = (
+    <div className="rounded-[1.1rem] border border-slate-800 bg-slate-950/55 p-4 transition hover:border-cyan-400/25 hover:bg-slate-950/85">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-white">{item.name}</p>
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
+            {item.kindLabel}
+          </p>
+        </div>
+        <ArrowUpRight size={15} className="shrink-0 text-slate-400" />
+      </div>
+
+      {item.supportingText ? (
+        <p className="mt-2 text-xs text-slate-400">{item.supportingText}</p>
+      ) : null}
+
+      {item.description ? (
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          {compactEvidenceText(item.description)}
+        </p>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {item.badges.map((badge) => (
+          <span
+            key={`${item.name}-${badge}`}
+            className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-[11px] font-medium text-slate-200"
+          >
+            {badge}
+          </span>
+        ))}
+        {item.updatedAtLabel ? (
+          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
+            Updated {item.updatedAtLabel}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  if (item.isExternal) {
+    return (
+      <a
+        href={item.href}
+        target="_blank"
+        rel="noreferrer"
+        className="block"
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return <Link href={item.href}>{content}</Link>;
+}
+
+function compactEvidenceText(value: string) {
+  return value.length <= 140 ? value : `${value.slice(0, 137)}...`;
 }
 
 function LanguagePanel({

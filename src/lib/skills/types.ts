@@ -12,18 +12,40 @@ export interface SkillsOverviewStat {
   description: string;
 }
 
-export interface SkillEvidenceRepo {
+export type SkillCategory =
+  | "frontend"
+  | "backend"
+  | "database"
+  | "language"
+  | "platform"
+  | "tooling"
+  | "workflow"
+  | "other";
+
+export interface SkillEvidenceProject {
   name: string;
-  url: string;
+  href: string;
+  description: string | null;
+  kindLabel: string;
+  isExternal: boolean;
+  badges: string[];
+  supportingText: string | null;
+  updatedAt: string | null;
+  updatedAtLabel: string | null;
 }
 
 export interface SkillTechCard {
   name: string;
+  summary: string;
+  category: SkillCategory;
+  categoryLabel: string;
   projectCount: number;
   usagePercent: number | null;
   usageText: string | null;
   sourceLabels: string[];
-  evidenceRepos: SkillEvidenceRepo[];
+  evidenceProjects: SkillEvidenceProject[];
+  latestActivityAt: string | null;
+  latestActivityLabel: string | null;
 }
 
 export interface SkillsLanguageItem {
@@ -64,6 +86,7 @@ export interface GitHubProjectSpotlight {
 
 export interface SkillsPageData {
   githubState: SkillsSourceState;
+  projectState: SkillsSourceState;
   wakatimeState: SkillsSourceState;
   overviewStats: SkillsOverviewStat[];
   coreTechStack: SkillTechCard[];
