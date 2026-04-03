@@ -8,7 +8,7 @@ export interface ParsedMicScheduleRow {
   startMinutes: number;
   endMinutes: number;
   note: string | null;
-  isCancelled: boolean;
+  isIgnoredForMic: boolean;
   building: string;
   floor: string;
   usesMorning: boolean;

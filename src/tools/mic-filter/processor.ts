@@ -18,7 +18,7 @@ type SheetCell = string | number | boolean | Date | null | undefined;
 const ACCEPTED_EXCEL_FILE_TYPE_SET = new Set<string>(ACCEPTED_EXCEL_FILE_TYPES);
 const ACCEPTED_EXCEL_EXTENSION_SET = new Set<string>(ACCEPTED_EXCEL_EXTENSIONS);
 const WIRELESS_MIC_ROOM_SET = new Set<string>(WIRELESS_MIC_ROOMS);
-const CANCELLED_NOTE_KEYWORD = "da bao nghi";
+const IGNORED_MIC_NOTE_KEYWORDS = ["da bao nghi", "khong phat mic"] as const;
 const REQUIRED_COLUMN_KEYS = {
   roomCode: normalizeHeaderLabel("Mã phòng"),
   studyDate: normalizeHeaderLabel("Ngày học"),
@@ -65,7 +65,10 @@ function validateExcelFile(file: File) {
   const isSupportedMimeType =
     file.type.length === 0 || ACCEPTED_EXCEL_FILE_TYPE_SET.has(file.type);
 
-  if (!ACCEPTED_EXCEL_EXTENSION_SET.has(fileExtension) && !isSupportedMimeType) {
+  if (
+    !ACCEPTED_EXCEL_EXTENSION_SET.has(fileExtension) &&
+    !isSupportedMimeType
+  ) {
     throw new Error("Chỉ hỗ trợ file Excel định dạng .xls hoặc .xlsx.");
   }
 
@@ -146,7 +149,7 @@ function parseDataRow(
   const note = toNullableText(
     getCellValue(row, columnIndexes, REQUIRED_COLUMN_KEYS.note),
   );
-  const isCancelled = isCancelledScheduleNote(note);
+  const isIgnoredForMic = isIgnoredMicScheduleNote(note);
 
   if (!roomCode) {
     throw new Error(`Dòng ${rowNumber} đang thiếu Mã phòng.`);
@@ -182,7 +185,7 @@ function parseDataRow(
     startMinutes,
     endMinutes,
     note,
-    isCancelled,
+    isIgnoredForMic,
     building: roomMeta.building,
     floor: roomMeta.floor,
     usesMorning: overlapsShift(
@@ -220,12 +223,15 @@ function buildMicFilterReport(
       .filter((studyDateKey): studyDateKey is string => Boolean(studyDateKey)),
   );
 
-  const resolvedStudyDateKey = fileDateKeys.size === 1 ? [...fileDateKeys][0] : null;
+  const resolvedStudyDateKey =
+    fileDateKeys.size === 1 ? [...fileDateKeys][0] : null;
   const specialAlarmCandidates = buildSpecialAlarmCandidates(
-    rows.filter((row) => !row.isCancelled),
+    rows.filter((row) => !row.isIgnoredForMic),
   );
 
-  const wirelessRows = rows.filter((row) => WIRELESS_MIC_ROOM_SET.has(row.roomCode));
+  const wirelessRows = rows.filter((row) =>
+    WIRELESS_MIC_ROOM_SET.has(row.roomCode),
+  );
   const roomSummary = new Map<
     string,
     {
@@ -242,7 +248,7 @@ function buildMicFilterReport(
 
   wirelessRows.forEach((row) => {
     const existing = roomSummary.get(row.roomCode);
-    const isActionableRow = !row.isCancelled;
+    const isActionableRow = !row.isIgnoredForMic;
 
     if (existing) {
       existing.usesMorning ||= isActionableRow && row.usesMorning;
@@ -380,11 +386,16 @@ function normalizeSearchableText(value: string | null | undefined) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ")
     .trim()
-    .toLocaleLowerCase("vi-VN");
+    .toLocaleLowerCase("vi-VN")
+    .replace(/đ/g, "d");
 }
 
-function isCancelledScheduleNote(note: string | null) {
-  return normalizeSearchableText(note).includes(CANCELLED_NOTE_KEYWORD);
+function isIgnoredMicScheduleNote(note: string | null) {
+  const normalizedNote = normalizeSearchableText(note);
+
+  return IGNORED_MIC_NOTE_KEYWORDS.some((keyword) =>
+    normalizedNote.includes(keyword),
+  );
 }
 
 function normalizeRoomCode(value: unknown) {
@@ -412,8 +423,9 @@ function parseDateKey(value: unknown): string | null {
 
   const datePart = text.split(" ")[0];
   const normalizedDatePart = datePart.replace(/\./g, "/").replace(/-/g, "/");
-  const dateMatch =
-    /^(\d{1,4})\/(\d{1,2})\/(\d{1,4})$/.exec(normalizedDatePart);
+  const dateMatch = /^(\d{1,4})\/(\d{1,2})\/(\d{1,4})$/.exec(
+    normalizedDatePart,
+  );
 
   if (dateMatch) {
     const first = Number(dateMatch[1]);
