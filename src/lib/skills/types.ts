@@ -25,6 +25,7 @@ export type SkillCategory =
 export interface SkillEvidenceProject {
   name: string;
   href: string;
+  githubHref: string | null;
   description: string | null;
   kindLabel: string;
   isExternal: boolean;
@@ -44,6 +45,7 @@ export interface SkillTechCard {
   usageText: string | null;
   sourceLabels: string[];
   evidenceProjects: SkillEvidenceProject[];
+  primaryGithubHref: string | null;
   latestActivityAt: string | null;
   latestActivityLabel: string | null;
 }

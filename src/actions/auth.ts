@@ -16,12 +16,13 @@ import {
   type AuthActionState,
 } from "@/lib/validators/auth";
 
-const MIN_HUMAN_FORM_FILL_MS = 120;
 const GENERIC_SIGN_IN_ERROR = "Email hoặc mật khẩu không đúng.";
 const GENERIC_SIGN_UP_ERROR =
   "Không thể tạo tài khoản với thông tin này. Vui lòng thử lại.";
 const GENERIC_RATE_LIMIT_ERROR =
   "Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.";
+const APP_USER_SYNC_ERROR =
+  "Xác thực thành công nhưng ứng dụng chưa đồng bộ được hồ sơ nội bộ. Kiểm tra DATABASE_URL, migration Prisma và ADMIN_EMAILS trên môi trường deploy.";
 
 function createSupabaseAdmin() {
   return createSupabaseAdminClient(
@@ -38,7 +39,6 @@ export async function loginUser(
     email: formData.get("email"),
     password: formData.get("password"),
     website: formData.get("website"),
-    formStartedAt: formData.get("formStartedAt"),
   });
 
   if (!parsed.success) {
@@ -50,7 +50,6 @@ export async function loginUser(
 
   const antiBotState = await assertHumanRequest({
     website: parsed.data.website,
-    formStartedAt: parsed.data.formStartedAt,
   });
 
   if (!antiBotState.allowed) {
@@ -86,12 +85,33 @@ export async function loginUser(
       };
     }
 
-    await syncAuthUserRecord({
-      userId: data.user.id,
-      email: data.user.email ?? parsed.data.email,
-    });
+    try {
+      await syncAuthUserRecord({
+        userId: data.user.id,
+        email: data.user.email ?? parsed.data.email,
+      });
+    } catch (syncError) {
+      console.error(
+        "Supabase sign-in succeeded but app user sync failed:",
+        syncError,
+      );
+
+      await supabase.auth.signOut().catch((signOutError) => {
+        console.error(
+          "Unable to roll back Supabase session after sync failure:",
+          signOutError,
+        );
+      });
+
+      return {
+        success: false,
+        error: APP_USER_SYNC_ERROR,
+      };
+    }
+
     shouldRedirect = true;
-  } catch {
+  } catch (error) {
+    console.error("Unexpected error during login:", error);
     return {
       success: false,
       error: GENERIC_SIGN_IN_ERROR,
@@ -117,7 +137,6 @@ export async function registerUser(
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
     website: formData.get("website"),
-    formStartedAt: formData.get("formStartedAt"),
   });
 
   if (!parsed.success) {
@@ -136,7 +155,6 @@ export async function registerUser(
 
   const antiBotState = await assertHumanRequest({
     website: parsed.data.website,
-    formStartedAt: parsed.data.formStartedAt,
   });
 
   if (!antiBotState.allowed) {
@@ -173,10 +191,18 @@ export async function registerUser(
       };
     }
 
-    await syncAuthUserRecord({
-      userId: createdUser.user.id,
-      email: parsed.data.email,
-    });
+    try {
+      await syncAuthUserRecord({
+        userId: createdUser.user.id,
+        email: parsed.data.email,
+      });
+    } catch (syncError) {
+      console.error("Created Supabase user but failed to sync app user:", syncError);
+      return {
+        success: false,
+        error: APP_USER_SYNC_ERROR,
+      };
+    }
 
     const supabase = await createSupabaseServerClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -191,7 +217,8 @@ export async function registerUser(
       };
     }
     shouldRedirect = true;
-  } catch {
+  } catch (error) {
+    console.error("Unexpected error during register:", error);
     return {
       success: false,
       error: GENERIC_SIGN_UP_ERROR,
@@ -210,7 +237,6 @@ export async function registerUser(
 
 async function assertHumanRequest(input: {
   website: string;
-  formStartedAt: number;
 }): Promise<
   | { allowed: true }
   | {
@@ -222,19 +248,6 @@ async function assertHumanRequest(input: {
     return {
       allowed: false,
       response: initialAuthActionState,
-    };
-  }
-
-  if (
-    input.formStartedAt === 0 ||
-    Date.now() - input.formStartedAt < MIN_HUMAN_FORM_FILL_MS
-  ) {
-    return {
-      allowed: false,
-      response: {
-        success: false,
-        error: "Biểu mẫu được gửi quá nhanh. Vui lòng thử lại.",
-      },
     };
   }
 

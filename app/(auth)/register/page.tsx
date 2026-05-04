@@ -1,26 +1,16 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
 import { registerUser } from "@/actions/auth";
 import { FullscreenLoader } from "@/components/ui/FullscreenLoader";
 import { initialAuthActionState } from "@/lib/validators/auth";
 
 export default function RegisterPage() {
-  const formStartedAtInputRef = useRef<HTMLInputElement>(null);
   const [state, formAction, isPending] = useActionState(
     registerUser,
     initialAuthActionState,
   );
-
-  const markFormInteraction = () => {
-    if (
-      formStartedAtInputRef.current &&
-      formStartedAtInputRef.current.value === "0"
-    ) {
-      formStartedAtInputRef.current.value = String(Date.now());
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
@@ -47,13 +37,6 @@ export default function RegisterPage() {
           )}
 
           <form action={formAction} className="space-y-6">
-            <input
-              type="hidden"
-              name="formStartedAt"
-              defaultValue="0"
-              ref={formStartedAtInputRef}
-            />
-
             <div className="hidden" aria-hidden="true">
               <label htmlFor="website">Website</label>
               <input
@@ -76,7 +59,6 @@ export default function RegisterPage() {
                 placeholder="you@example.com"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoComplete="email"
-                onFocus={markFormInteraction}
                 required
               />
             </div>
@@ -96,7 +78,6 @@ export default function RegisterPage() {
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoComplete="new-password"
                 minLength={8}
-                onFocus={markFormInteraction}
                 required
               />
             </div>
@@ -116,7 +97,6 @@ export default function RegisterPage() {
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoComplete="new-password"
                 minLength={8}
-                onFocus={markFormInteraction}
                 required
               />
             </div>

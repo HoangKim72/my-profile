@@ -13,13 +13,11 @@ const passwordSchema = z
   .max(72, "Mật khẩu quá dài");
 
 const honeypotSchema = z.string().trim().max(0).optional().default("");
-const formStartedAtSchema = z.coerce.number().int().nonnegative();
 
 export const signInSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   website: honeypotSchema,
-  formStartedAt: formStartedAtSchema,
 });
 
 export const registerSchema = signInSchema.extend({

@@ -35,15 +35,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+  let response = NextResponse.next({
+    request,
   });
-
-  if (!isDashboardRoute && !isAuthPage) {
-    return applySecurityHeaders(response, request);
-  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,6 +48,14 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+
+          response = NextResponse.next({
+            request,
+          });
+
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -70,7 +72,7 @@ export async function middleware(request: NextRequest) {
   if (isDashboardRoute) {
     if (!user) {
       return applySecurityHeaders(
-        NextResponse.redirect(new URL("/login", request.url)),
+        createRedirectResponse(response, new URL("/login", request.url)),
         request,
       );
     }
@@ -80,7 +82,7 @@ export async function middleware(request: NextRequest) {
   if (isAuthPage) {
     if (user) {
       return applySecurityHeaders(
-        NextResponse.redirect(new URL("/dashboard", request.url)),
+        createRedirectResponse(response, new URL("/dashboard", request.url)),
         request,
       );
     }
@@ -139,4 +141,22 @@ function buildTooManyRequestsResponse(retryAfterMs: number) {
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
   return response;
+}
+
+function createRedirectResponse(baseResponse: NextResponse, url: URL) {
+  const redirectResponse = NextResponse.redirect(url);
+
+  baseResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie);
+  });
+
+  baseResponse.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie") {
+      return;
+    }
+
+    redirectResponse.headers.set(key, value);
+  });
+
+  return redirectResponse;
 }

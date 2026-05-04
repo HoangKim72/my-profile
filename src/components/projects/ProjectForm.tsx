@@ -11,7 +11,6 @@ import JSZip from "jszip";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Archive,
   Download,
   FolderOpen,
   Loader,
@@ -157,11 +156,10 @@ export function ProjectForm({
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-2xl font-bold">Folder Share Project</h2>
+          <h2 className="text-2xl font-bold">Project Setup</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Mỗi project tương ứng với một thư mục chia sẻ. Bạn chỉ cần đặt tên
-            project và chọn nguyên folder, hệ thống sẽ tự đóng gói thành file
-            ZIP để người dùng tải về.
+            Đặt tên project và chọn nguyên folder, hệ thống sẽ tự đóng gói
+            thành file ZIP để người dùng tải về.
           </p>
         </div>
 
@@ -190,9 +188,8 @@ export function ProjectForm({
           <div>
             <h3 className="text-xl font-bold">Shared Folder</h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Chọn nguyên folder môn học hoặc tài liệu cần chia sẻ. Nếu đang sửa
-              project mà không chọn folder mới, hệ thống sẽ giữ nguyên file đang
-              có.
+              Chọn nguyên folder cần chia sẻ. Nếu không chọn folder mới khi đang
+              sửa, hệ thống sẽ giữ nguyên file hiện tại.
             </p>
           </div>
         </div>
@@ -208,17 +205,13 @@ export function ProjectForm({
 
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                <Archive size={14} />
-                Tự động nén thành ZIP khi lưu
-              </div>
               <h4 className="text-lg font-semibold">
                 {selectedFolderName || "Chưa chọn thư mục nào"}
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {selectedFiles.length > 0
                   ? `${selectedFiles.length} file • ${formatFileSize(totalSelectedBytes)} trước khi nén`
-                  : "Hệ thống giữ cấu trúc thư mục bên trong file ZIP để người dùng tải về đúng bố cục."}
+                  : "Cấu trúc folder sẽ được giữ nguyên bên trong file ZIP."}
               </p>
             </div>
 
@@ -260,12 +253,6 @@ export function ProjectForm({
             </div>
           </div>
         )}
-
-        <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
-          Project loại này sẽ tự lưu ở trạng thái <strong>Published</strong> và
-          chế độ <strong>Public</strong> để người dùng thấy ngay trong danh sách
-          thư mục tải xuống.
-        </div>
       </section>
 
       <div className="flex flex-col gap-3 border-t border-gray-200 pt-6 dark:border-gray-800 sm:flex-row">
@@ -302,10 +289,10 @@ function buildProjectPayload(title: string, project?: ProjectFormProject) {
   return {
     title: trimmedTitle,
     slug: project?.slug || slugifyProjectTitle(trimmedTitle),
-    shortDescription: `Folder tài liệu ${trimmedTitle} đã được chia sẻ để mọi người tải xuống và sử dụng ngay.`,
-    content: `Đây là thư mục tài liệu dành cho ${trimmedTitle}. Toàn bộ nội dung được đóng gói thành một file ZIP để người dùng chỉ cần bấm tải một lần là có thể dùng ngay trên máy của mình.`,
+    shortDescription: `Tài liệu cho ${trimmedTitle} đã được đóng gói để tải xuống nhanh và dùng ngay.`,
+    content: `Đây là bộ tài liệu dành cho ${trimmedTitle}. Toàn bộ nội dung được đóng gói thành một file ZIP để người dùng có thể tải về chỉ với một lần bấm.`,
     subjectName: trimmedTitle,
-    semester: "Shared resources",
+    semester: "Tài nguyên chia sẻ",
     techStack: "ZIP archive, Downloadable resources",
     githubUrl: project?.githubUrl || "",
     demoUrl: project?.demoUrl || "",

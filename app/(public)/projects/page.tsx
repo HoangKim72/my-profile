@@ -7,8 +7,8 @@ import { getPublicProjects } from "@/actions/projects";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Shared Folders",
-  description: "Download shared study folders and project resources",
+  title: "Projects",
+  description: "Kho project công khai kèm tệp tải về và liên kết tham khảo",
 };
 
 export default async function ProjectsPage() {
@@ -19,11 +19,10 @@ export default async function ProjectsPage() {
       <div className="container-custom">
         <div className="mb-12">
           <h1 className="text-5xl font-bold mb-4 text-gradient">
-            Shared Folders
+            Projects
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300">
-            Danh sách các thư mục tài liệu đã được đóng gói sẵn để bạn tải về
-            và sử dụng ngay.
+            Kho project công khai kèm tệp ZIP, mô tả ngắn và liên kết tham khảo.
           </p>
         </div>
 
@@ -35,13 +34,13 @@ export default async function ProjectsPage() {
               ))}
             </div>
             <p className="text-center text-gray-600 dark:text-gray-400 mt-12">
-              Tổng số thư mục có thể tải xuống: {total}
+              Hiện có {total} project công khai.
             </p>
           </>
         ) : (
           <div className="text-center py-20">
             <p className="text-gray-600 dark:text-gray-400 text-lg">
-              Chưa có thư mục nào sẵn sàng để tải xuống.
+              Chưa có project nào được xuất bản.
             </p>
           </div>
         )}

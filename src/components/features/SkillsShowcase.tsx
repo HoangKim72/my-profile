@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { type KeyboardEvent, useState } from "react";
 import {
   Activity,
   ArrowUpRight,
@@ -441,6 +441,7 @@ function SkillCardGrid({
 function SkillSignalCard({ item }: { item: SkillTechCard }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasEvidence = item.evidenceProjects.length > 0;
+  const githubHref = item.primaryGithubHref;
   const usageValue =
     item.usagePercent !== null
       ? `${item.usagePercent.toFixed(1)}%`
@@ -453,30 +454,84 @@ function SkillSignalCard({ item }: { item: SkillTechCard }) {
       ? "Duoc chung minh bang project evidence."
       : "Dang cho them usage signal.");
 
+  const openGithubLink = () => {
+    if (!githubHref) {
+      return;
+    }
+
+    window.open(githubHref, "_blank", "noopener,noreferrer");
+  };
+
+  const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!githubHref) {
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openGithubLink();
+    }
+  };
+
   return (
-    <div className="group relative" tabIndex={0}>
-      <div className="h-full rounded-[1.5rem] border border-slate-800 bg-[linear-gradient(180deg,_rgba(8,20,38,0.98)_0%,_rgba(4,12,26,0.98)_100%)] p-5 transition duration-200 hover:border-cyan-400/25 hover:shadow-[0_18px_50px_-28px_rgba(34,211,238,0.38)] focus-within:border-cyan-400/25">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">
-            {item.categoryLabel}
-          </span>
-          <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
-            {item.sourceLabels.join(" + ")}
-          </span>
+    <div
+      className="group relative"
+      tabIndex={0}
+      role={githubHref ? "link" : undefined}
+      aria-label={githubHref ? `Open GitHub for ${item.name}` : undefined}
+      onKeyDown={handleCardKeyDown}
+    >
+      <div className="pointer-events-none absolute -inset-1 rounded-[1.75rem] bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_56%),linear-gradient(135deg,_rgba(34,211,238,0.12),_transparent_40%,_rgba(16,185,129,0.12))] opacity-0 blur-xl transition duration-300 group-hover:opacity-100 group-focus-within:opacity-100" />
+      <div
+        className={`relative h-full rounded-[1.5rem] border border-slate-800 bg-[linear-gradient(180deg,_rgba(8,20,38,0.98)_0%,_rgba(4,12,26,0.98)_100%)] p-5 transition duration-300 group-hover:-translate-y-1 group-hover:border-cyan-300/45 group-hover:shadow-[0_28px_70px_-36px_rgba(34,211,238,0.55)] group-focus-within:-translate-y-1 group-focus-within:border-cyan-300/45 ${
+          githubHref ? "cursor-pointer" : ""
+        }`}
+        onClick={() => {
+          if (githubHref) {
+            openGithubLink();
+          }
+        }}
+      >
+        <div className="pointer-events-none absolute inset-0 rounded-[1.5rem] bg-[linear-gradient(135deg,_rgba(34,211,238,0.08),_transparent_34%,_rgba(16,185,129,0.08))] opacity-0 transition duration-300 group-hover:opacity-100 group-focus-within:opacity-100" />
+
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">
+              {item.categoryLabel}
+            </span>
+            <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
+              {item.sourceLabels.join(" + ")}
+            </span>
+          </div>
+
+          {githubHref ? (
+            <a
+              href={githubHref}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/12 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-400/18 hover:text-white"
+            >
+              <Github size={14} />
+              GitHub
+            </a>
+          ) : null}
         </div>
 
-        <div className="mt-4">
-          <p className="text-2xl font-black tracking-tight text-white">
+        <div className="relative mt-4">
+          <p className="text-2xl font-black tracking-tight text-white transition group-hover:text-cyan-50 group-focus-within:text-cyan-50">
             {item.name}
           </p>
           <p className="mt-2 text-sm leading-6 text-slate-300">{item.summary}</p>
         </div>
 
-        <p className="mt-4 text-sm font-medium text-slate-200">
+        <p className="relative mt-4 text-sm font-medium text-slate-200">
           {buildSkillSignalSummary(item)}
         </p>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="relative mt-5 grid gap-3 sm:grid-cols-2">
           <SignalMetric
             label="Usage"
             value={usageValue}
@@ -494,7 +549,7 @@ function SkillSignalCard({ item }: { item: SkillTechCard }) {
         </div>
 
         {item.usagePercent !== null ? (
-          <div className="mt-5">
+          <div className="relative mt-5">
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="text-slate-300">Usage signal</span>
               <span className="font-semibold text-white">
@@ -510,15 +565,15 @@ function SkillSignalCard({ item }: { item: SkillTechCard }) {
           </div>
         ) : null}
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="relative mt-5 flex flex-wrap gap-2">
           {item.latestActivityLabel ? (
             <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
               Active {item.latestActivityLabel}
             </span>
           ) : null}
           {hasEvidence ? (
-            <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-300">
-              Hover de xem project evidence
+            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-100">
+              Hover để xem project evidence
             </span>
           ) : null}
           {!hasEvidence && item.usageText ? (
@@ -529,15 +584,21 @@ function SkillSignalCard({ item }: { item: SkillTechCard }) {
         </div>
 
         {hasEvidence ? (
-          <button
-            type="button"
-            onClick={() => setIsExpanded((value) => !value)}
-            className="mt-5 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/30 hover:text-white md:hidden"
-          >
-            {isExpanded ? "An project evidence" : "Xem project evidence"}
-            <ArrowUpRight size={14} />
-          </button>
+          <div className="relative mt-5 flex flex-wrap gap-3 md:hidden">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsExpanded((value) => !value);
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/30 hover:text-white"
+            >
+              {isExpanded ? "Ẩn project evidence" : "Xem project evidence"}
+              <ArrowUpRight size={14} />
+            </button>
+          </div>
         ) : null}
+
       </div>
 
       {hasEvidence ? (

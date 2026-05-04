@@ -11,10 +11,10 @@ export default async function NewProjectPage() {
   return (
     <div className="max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Tạo Thư Mục Chia Sẻ</h1>
+        <h1 className="text-4xl font-bold mb-2">Create Project</h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Tạo một project dạng folder để người dùng có thể tải xuống nguyên thư
-          mục.
+          Tạo project dạng folder để người dùng có thể tải xuống trọn bộ tài
+          liệu trong một lần.
         </p>
       </div>
 

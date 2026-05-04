@@ -46,24 +46,24 @@ export default async function ProjectsPage() {
 
   const summaryCards = [
     {
-      label: "Tong folder",
+      label: "Tổng folder",
       value: totalProjects,
-      detail: "Danh sach hien tai ban co the quan ly.",
+      detail: "Danh sách hiện tại bạn có thể quản lý.",
     },
     {
-      label: "Da co archive",
+      label: "Đã có archive",
       value: readyArchives,
-      detail: "San sang cho download hoac doi chieu.",
+      detail: "Sẵn sàng để tải xuống hoặc đối chiếu.",
     },
     {
-      label: "Dang public",
+      label: "Đang public",
       value: publicProjects,
-      detail: "Dang hien thi tren trang cong khai.",
+      detail: "Đang hiển thị trên trang công khai.",
     },
     {
-      label: "Ban la owner",
+      label: "Bạn là owner",
       value: ownedProjects,
-      detail: "Nhung folder do ban tao truc tiep.",
+      detail: "Những folder do bạn tạo trực tiếp.",
     },
   ];
 
@@ -74,21 +74,21 @@ export default async function ProjectsPage() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
               <FolderPlus size={14} />
-              Folder management
+              Project manager
             </div>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-              Quan ly folder va tai nguyen chia se
+              Folder management
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-              Theo doi owner, file archive, visibility va trang thai cua tung
-              folder de ban biet folder nao da san sang cho nguoi dung.
+              Theo dõi owner, file archive, visibility và trạng thái của từng
+              folder để biết mục nào đã sẵn sàng cho người dùng.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard/projects/new" className="btn-primary">
               <FolderPlus size={16} />
-              Tao folder moi
+              Tạo folder mới
             </Link>
             <Link href="/projects" className="btn-secondary">
               <Eye size={16} />
@@ -156,7 +156,7 @@ export default async function ProjectsPage() {
                       </div>
                       <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-500">
-                          Quyen truy cap
+                          Quyền truy cập
                         </p>
                         <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
                           {project.authorId === user.id
@@ -173,7 +173,7 @@ export default async function ProjectsPage() {
                         <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
                           {latestFile
                             ? `${latestFile.fileName} • ${formatFileSize(latestFile.sizeBytes)}`
-                            : "Chua co file ZIP"}
+                            : "Chưa có file ZIP"}
                         </p>
                       </div>
                     </div>
@@ -186,7 +186,7 @@ export default async function ProjectsPage() {
                   <div className="xl:w-72">
                     <div className="rounded-[26px] border border-slate-200 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">
-                        Hanh dong nhanh
+                        Hành động nhanh
                       </p>
                       <div className="mt-4 flex flex-col gap-3">
                         <Link
@@ -194,7 +194,7 @@ export default async function ProjectsPage() {
                           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                         >
                           <PencilLine size={16} />
-                          Mo chinh sua
+                          Mở chỉnh sửa
                         </Link>
                         {latestFile && (
                           <Link
@@ -202,7 +202,7 @@ export default async function ProjectsPage() {
                             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
                           >
                             <Download size={16} />
-                            Tai archive
+                            Tải archive
                           </Link>
                         )}
                         <Link
@@ -223,14 +223,14 @@ export default async function ProjectsPage() {
       ) : (
         <section className="rounded-[30px] border border-dashed border-slate-300 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-900/85">
           <p className="text-lg font-medium text-slate-700 dark:text-slate-200">
-            Chua co thu muc chia se nao duoc tao.
+            Chưa có thư mục chia sẻ nào được tạo.
           </p>
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            Bat dau bang cach tao folder moi, tai archive len va kiem tra lai
+            Bắt đầu bằng cách tạo folder mới, tải archive lên và kiểm tra lại
             trang public.
           </p>
           <Link href="/dashboard/projects/new" className="btn-primary mt-6">
-            Tao folder dau tien
+            Tạo folder đầu tiên
           </Link>
         </section>
       )}

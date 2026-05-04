@@ -497,6 +497,7 @@ async function getGitHubSkillSnapshot(
       existingEvidence.set(`github:${repo.name}`, {
         name: repo.name,
         href: repo.homepageUrl || repo.url,
+        githubHref: repo.url,
         description:
           repo.description ||
           `Project evidence tu GitHub cho ${techName.toLowerCase()}.`,
@@ -615,6 +616,7 @@ async function getProjectArchiveSkillSnapshot(): Promise<ProjectArchiveSkillSnap
       existingEvidence.set(`project:${project.slug}`, {
         name: project.title,
         href: `/projects/${project.slug}`,
+        githubHref: project.githubUrl?.trim() || null,
         description: project.shortDescription,
         kindLabel: "Shared folder",
         isExternal: false,
@@ -1217,6 +1219,7 @@ function createSkillCard({
     usageText,
     sourceLabels: sortSourceLabels(sourceLabels),
     evidenceProjects: dedupedEvidenceProjects,
+    primaryGithubHref: pickPrimaryGithubHref(dedupedEvidenceProjects),
     latestActivityAt: latestActivity.value,
     latestActivityLabel: latestActivity.label,
   };
@@ -1260,6 +1263,7 @@ function mergeSkillCards(left: SkillTechCard, right: SkillTechCard): SkillTechCa
     usageText: usage.text,
     sourceLabels: sortSourceLabels([...left.sourceLabels, ...right.sourceLabels]),
     evidenceProjects,
+    primaryGithubHref: pickPrimaryGithubHref(evidenceProjects),
     latestActivityAt: latestActivity.value,
     latestActivityLabel: latestActivity.label,
   };
@@ -1321,6 +1325,11 @@ function dedupeEvidenceProjects(evidenceProjects: SkillEvidenceProject[]) {
 
     return left.name.localeCompare(right.name);
   });
+}
+
+function pickPrimaryGithubHref(evidenceProjects: SkillEvidenceProject[]) {
+  const githubProject = evidenceProjects.find((project) => project.githubHref);
+  return githubProject?.githubHref ?? null;
 }
 
 function sortSourceLabels(sourceLabels: string[]) {
