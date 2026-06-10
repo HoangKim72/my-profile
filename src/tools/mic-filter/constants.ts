@@ -36,7 +36,7 @@ export const SHIFT_WINDOWS = {
 export const WIRELESS_MIC_ROOMS = [
   "E1-03.05",
   "E1-03.07",
-  "E1-03.10",
+  //"E1-03.10",
   "E1-03.18",
   "E1-05.05",
   "E1-05.07",
