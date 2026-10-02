@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Bell,
   CalendarClock,
+  Check,
   CheckCircle2,
   Clock3,
+  Copy,
   FileSpreadsheet,
+  ImageDown,
   Loader,
   RefreshCcw,
   TableProperties,
@@ -19,15 +22,38 @@ import {
   buildAlarmSchedulePlan,
   getSpecialAlarmOfferState,
 } from "@/tools/mic-filter/alarm";
+import { ACCEPTED_EXCEL_EXTENSIONS } from "@/tools/mic-filter/constants";
 import {
-  ACCEPTED_EXCEL_EXTENSIONS,
-  SHIFT_WINDOWS,
-} from "@/tools/mic-filter/constants";
+  describeAlarmRule,
+  formatClockValue,
+  SHIFT_LABELS,
+  type MicFilterConfig,
+} from "@/tools/mic-filter/config";
+import {
+  buildMiddayExportTable,
+  buildMiddayText,
+  buildMorningExportTable,
+  buildMorningText,
+} from "@/tools/mic-filter/export";
 import { processMicFilterFile } from "@/tools/mic-filter/processor";
 import {
-  ShiftSummaryPanel,
-  type ShiftSummaryShift,
-} from "@/components/tools/ShiftSummaryPanel";
+  buildChecklistKey,
+  CHECKLIST_KIND_LABELS,
+  createEmptySummary,
+  getChecklistProgress,
+  getDayKey,
+  MIC_SESSION_STORAGE_KEY,
+  parseMicSession,
+  serializeMicSession,
+  type ChecklistKind,
+  type MicSession,
+  type ShiftSummaryState,
+} from "@/tools/mic-filter/session";
+import { ShiftSummaryPanel } from "@/components/tools/ShiftSummaryPanel";
+import {
+  copyOrDownloadImage,
+  renderTableImage,
+} from "@/components/tools/table-image";
 import type {
   MicFilterReport,
   SpecialAlarmCandidate,
@@ -56,11 +82,21 @@ export type MicFilterMode = "filter" | "shift-summary";
 interface MicFilterToolProps {
   mode: MicFilterMode;
   onModeChange: (mode: MicFilterMode) => void;
+  config: MicFilterConfig;
 }
+
+type ResultTableKind = "morning" | "midday";
+
+type CountField =
+  | "acIncrease"
+  | "acDecrease"
+  | "usedBatteryCount"
+  | "extraBatteryCount";
 
 export function MicFilterTool({
   mode,
   onModeChange,
+  config,
 }: MicFilterToolProps) {
   const [report, setReport] = useState<MicFilterReport | null>(null);
   const [fileError, setFileError] = useState<InlineErrorState | null>(null);
@@ -72,19 +108,31 @@ export function MicFilterTool({
   const [scheduledAlarms, setScheduledAlarms] = useState<
     Record<string, ScheduledAlarmState>
   >({});
-  const [shift, setShift] = useState<ShiftSummaryShift>("morning");
-  const [summaryDate, setSummaryDate] = useState(() => getTodayLabel());
-  const [hasEditedSummaryDate, setHasEditedSummaryDate] = useState(false);
-  const [acIncrease, setAcIncrease] = useState(0);
-  const [acDecrease, setAcDecrease] = useState(0);
-  const [roomFeedbackCount, setRoomFeedbackCount] = useState(0);
-  const [roomFeedbackDetails, setRoomFeedbackDetails] = useState<string[]>([]);
-  const [borrowedItemCount, setBorrowedItemCount] = useState(0);
-  const [borrowedItemDetails, setBorrowedItemDetails] = useState<string[]>([]);
-  const [usedBatteryCount, setUsedBatteryCount] = useState(0);
-  const [extraBatteryCount, setExtraBatteryCount] = useState(0);
+  const [checked, setChecked] = useState<string[]>([]);
+  const [summary, setSummary] = useState<ShiftSummaryState>(() =>
+    createEmptySummary(new Date()),
+  );
+  const [sessionDayKey, setSessionDayKey] = useState(() =>
+    getDayKey(new Date()),
+  );
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
   const alarmTimeoutsRef = useRef<Map<string, number>>(new Map());
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  const checkedSet = useMemo(() => new Set(checked), [checked]);
+  const {
+    shift,
+    summaryDate,
+    hasEditedSummaryDate,
+    acIncrease,
+    acDecrease,
+    roomFeedbackDetails,
+    borrowedItemDetails,
+    usedBatteryCount,
+    extraBatteryCount,
+  } = summary;
+  const roomFeedbackCount = roomFeedbackDetails.length;
+  const borrowedItemCount = borrowedItemDetails.length;
 
   const reportStudyDateLabel = report?.studyDateLabel ?? null;
   const canReset = Boolean(report || selectedFileName || fileError);
@@ -131,9 +179,74 @@ export function MicFilterTool({
 
   useEffect(() => {
     if (reportStudyDateLabel && !hasEditedSummaryDate) {
-      setSummaryDate(reportStudyDateLabel);
+      setSummary((current) =>
+        current.summaryDate === reportStudyDateLabel
+          ? current
+          : { ...current, summaryDate: reportStudyDateLabel },
+      );
     }
   }, [hasEditedSummaryDate, reportStudyDateLabel]);
+
+  // Restore today's session after mount (localStorage is not available
+  // during server rendering)
+  useEffect(() => {
+    const now = new Date();
+    const stored = parseMicSession(readStoredSession(), now);
+
+    if (stored) {
+      setReport(stored.report);
+      setChecked(stored.checked);
+      setSummary(stored.summary);
+
+      if (stored.report) {
+        setSelectedFileName(stored.report.fileName);
+        setToast({
+          tone: "info",
+          title: "Đã khôi phục phiên làm việc hôm nay.",
+          description:
+            "Bảng kết quả, checklist và dữ liệu kết ca được giữ lại sau khi tải lại trang. Dữ liệu tự xoá khi sang ngày mới.",
+        });
+      }
+    }
+
+    setSessionDayKey(getDayKey(now));
+    setIsSessionLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isSessionLoaded) {
+      return;
+    }
+
+    writeStoredSession({
+      version: 1,
+      dayKey: sessionDayKey,
+      report,
+      checked,
+      summary,
+    });
+  }, [isSessionLoaded, sessionDayKey, report, checked, summary]);
+
+  // A tab left open overnight starts the new day with a clean session
+  useEffect(() => {
+    const todayKey = getDayKey(currentTime);
+
+    if (!isSessionLoaded || todayKey === sessionDayKey) {
+      return;
+    }
+
+    alarmTimeoutsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    alarmTimeoutsRef.current.clear();
+    setReport(null);
+    setChecked([]);
+    setSummary(createEmptySummary(currentTime));
+    setScheduledAlarms({});
+    setSelectedFileName(null);
+    setFileError(null);
+    setSessionDayKey(todayKey);
+  }, [currentTime, isSessionLoaded, sessionDayKey]);
 
   useEffect(() => {
     return () => {
@@ -165,9 +278,10 @@ export function MicFilterTool({
     setToast(null);
 
     try {
-      const nextReport = await processMicFilterFile(file);
+      const nextReport = await processMicFilterFile(file, config);
 
       setReport(nextReport);
+      setChecked([]);
       setToast({
         tone: "success",
         title: nextReport.studyDateLabel
@@ -199,10 +313,11 @@ export function MicFilterTool({
     setToast(null);
     setSelectedFileName(null);
     setScheduledAlarms({});
+    setChecked([]);
     setInputKey((current) => current + 1);
 
     if (!hasEditedSummaryDate) {
-      setSummaryDate(getTodayLabel());
+      updateSummary({ summaryDate: getTodayLabel() });
     }
   };
 
@@ -237,21 +352,22 @@ export function MicFilterTool({
           totalBattery={totalBattery}
           summaryText={summaryText}
           onBack={() => onModeChange("filter")}
-          onShiftChange={setShift}
+          onShiftChange={(nextShift) => updateSummary({ shift: nextShift })}
           onSummaryDateChange={(value) => {
-            setSummaryDate(value);
-            setHasEditedSummaryDate(true);
+            updateSummary({ summaryDate: value, hasEditedSummaryDate: true });
           }}
           onUseReportDate={
             reportStudyDateLabel
               ? () => {
-                  setSummaryDate(reportStudyDateLabel);
-                  setHasEditedSummaryDate(false);
+                  updateSummary({
+                    summaryDate: reportStudyDateLabel,
+                    hasEditedSummaryDate: false,
+                  });
                 }
               : undefined
           }
-          onAdjustAcIncrease={(delta) => adjustCounter(setAcIncrease, delta)}
-          onAdjustAcDecrease={(delta) => adjustCounter(setAcDecrease, delta)}
+          onAdjustAcIncrease={(delta) => adjustCount("acIncrease", delta)}
+          onAdjustAcDecrease={(delta) => adjustCount("acDecrease", delta)}
           onIncreaseRoomFeedback={increaseRoomFeedback}
           onDecreaseRoomFeedback={decreaseRoomFeedback}
           onUpdateRoomFeedbackDetail={updateRoomFeedbackDetail}
@@ -259,12 +375,13 @@ export function MicFilterTool({
           onDecreaseBorrowedItem={decreaseBorrowedItem}
           onUpdateBorrowedItemDetail={updateBorrowedItemDetail}
           onAdjustUsedBattery={(delta) =>
-            adjustCounter(setUsedBatteryCount, delta)
+            adjustCount("usedBatteryCount", delta)
           }
           onAdjustExtraBattery={(delta) =>
-            adjustCounter(setExtraBatteryCount, delta)
+            adjustCount("extraBatteryCount", delta)
           }
           onCopySummary={() => void handleCopySummary()}
+          onResetSummary={handleResetSummary}
         />
       ) : (
         <>
@@ -275,11 +392,13 @@ export function MicFilterTool({
               fileError={fileError}
               canReset={canReset}
               inputKey={inputKey}
+              config={config}
               onReset={handleReset}
               onFileChange={handleFileChange}
             />
 
             <AlarmCard
+              config={config}
               report={report}
               currentTime={currentTime}
               visibleAlarmCandidates={visibleAlarmCandidates}
@@ -316,8 +435,18 @@ export function MicFilterTool({
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <MorningResultCard report={report} />
-              <MiddayResultCard report={report} />
+              <MorningResultCard
+                report={report}
+                checked={checkedSet}
+                onToggle={toggleChecklist}
+                onExport={handleExportTable}
+              />
+              <MiddayResultCard
+                report={report}
+                checked={checkedSet}
+                onToggle={toggleChecklist}
+                onExport={handleExportTable}
+              />
             </div>
           </section>
 
@@ -370,43 +499,124 @@ export function MicFilterTool({
     alarmTimeoutsRef.current.clear();
   }
 
-  function adjustCounter(
-    setter: React.Dispatch<React.SetStateAction<number>>,
-    delta: number,
+  function updateSummary(patch: Partial<ShiftSummaryState>) {
+    setSummary((current) => ({ ...current, ...patch }));
+  }
+
+  function adjustCount(field: CountField, delta: number) {
+    setSummary((current) => ({
+      ...current,
+      [field]: Math.max(0, current[field] + delta),
+    }));
+  }
+
+  function updateDetailList(
+    field: "roomFeedbackDetails" | "borrowedItemDetails",
+    update: (items: string[]) => string[],
   ) {
-    setter((current) => Math.max(0, current + delta));
+    setSummary((current) => ({ ...current, [field]: update(current[field]) }));
   }
 
   function increaseRoomFeedback() {
-    setRoomFeedbackCount((current) => current + 1);
-    setRoomFeedbackDetails((current) => [...current, ""]);
+    updateDetailList("roomFeedbackDetails", (items) => [...items, ""]);
   }
 
   function decreaseRoomFeedback() {
-    setRoomFeedbackCount((current) => Math.max(0, current - 1));
-    setRoomFeedbackDetails((current) => current.slice(0, -1));
+    updateDetailList("roomFeedbackDetails", (items) => items.slice(0, -1));
   }
 
   function updateRoomFeedbackDetail(index: number, value: string) {
-    setRoomFeedbackDetails((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? value : item)),
+    updateDetailList("roomFeedbackDetails", (items) =>
+      items.map((item, itemIndex) => (itemIndex === index ? value : item)),
     );
   }
 
   function increaseBorrowedItem() {
-    setBorrowedItemCount((current) => current + 1);
-    setBorrowedItemDetails((current) => [...current, ""]);
+    updateDetailList("borrowedItemDetails", (items) => [...items, ""]);
   }
 
   function decreaseBorrowedItem() {
-    setBorrowedItemCount((current) => Math.max(0, current - 1));
-    setBorrowedItemDetails((current) => current.slice(0, -1));
+    updateDetailList("borrowedItemDetails", (items) => items.slice(0, -1));
   }
 
   function updateBorrowedItemDetail(index: number, value: string) {
-    setBorrowedItemDetails((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? value : item)),
+    updateDetailList("borrowedItemDetails", (items) =>
+      items.map((item, itemIndex) => (itemIndex === index ? value : item)),
     );
+  }
+
+  function handleResetSummary() {
+    const freshSummary = createEmptySummary(new Date());
+
+    setSummary({
+      ...freshSummary,
+      shift,
+      summaryDate: reportStudyDateLabel ?? freshSummary.summaryDate,
+    });
+    setToast({
+      tone: "info",
+      title: "Đã xoá dữ liệu kết ca.",
+      description: "Các bộ đếm và ghi chú đã về 0, ca đang chọn được giữ nguyên.",
+    });
+  }
+
+  function toggleChecklist(key: string) {
+    setChecked((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key],
+    );
+  }
+
+  async function handleExportTable(
+    kind: ResultTableKind,
+    format: "text" | "image",
+  ) {
+    if (!report) {
+      return;
+    }
+
+    try {
+      if (format === "text") {
+        if (!navigator.clipboard) {
+          throw new Error("clipboard");
+        }
+
+        await navigator.clipboard.writeText(
+          kind === "morning" ? buildMorningText(report) : buildMiddayText(report),
+        );
+        setToast({
+          tone: "success",
+          title: "Đã copy bảng dạng chữ.",
+          description: "Dán thẳng vào Zalo hoặc Messenger.",
+        });
+        return;
+      }
+
+      const table =
+        kind === "morning"
+          ? buildMorningExportTable(report)
+          : buildMiddayExportTable(report);
+      const blob = await renderTableImage(table);
+      const fileName = `${kind === "morning" ? "soan-mic-sang" : "thu-phat-trua"}-${sessionDayKey}.png`;
+      const result = await copyOrDownloadImage(blob, fileName);
+
+      setToast({
+        tone: "success",
+        title:
+          result === "copied" ? "Đã copy ảnh bảng." : "Đã tải ảnh bảng về máy.",
+        description:
+          result === "copied"
+            ? "Dán (Ctrl+V) vào Zalo để gửi ảnh."
+            : "Trình duyệt không cho copy ảnh nên ảnh được lưu thành file PNG.",
+      });
+    } catch {
+      setToast({
+        tone: "error",
+        title: "Chưa xuất được bảng.",
+        description: "Trình duyệt đã chặn thao tác. Hãy thử lại.",
+      });
+    }
   }
 
   async function handleCopySummary() {
@@ -642,6 +852,7 @@ function UploadCard({
   fileError,
   canReset,
   inputKey,
+  config,
   onReset,
   onFileChange,
 }: {
@@ -650,12 +861,13 @@ function UploadCard({
   fileError: InlineErrorState | null;
   canReset: boolean;
   inputKey: number;
+  config: MicFilterConfig;
   onReset: () => void;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <section className="relative overflow-hidden rounded-[1.75rem] border border-cyan-400/15 bg-[linear-gradient(180deg,_rgba(7,17,38,0.98)_0%,_rgba(5,14,31,0.98)_100%)] p-5 shadow-[0_24px_70px_-36px_rgba(14,165,233,0.4)] xl:col-span-3">
-      <LogicHoverCard />
+      <LogicHoverCard config={config} />
 
       <div className="pr-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -773,6 +985,7 @@ function UploadCard({
 }
 
 function AlarmCard({
+  config,
   report,
   currentTime,
   visibleAlarmCandidates,
@@ -780,6 +993,7 @@ function AlarmCard({
   onScheduleAlarm,
   onCancelAlarm,
 }: {
+  config: MicFilterConfig;
   report: MicFilterReport | null;
   currentTime: Date;
   visibleAlarmCandidates: SpecialAlarmCandidate[];
@@ -788,6 +1002,12 @@ function AlarmCard({
   onCancelAlarm: (candidate: SpecialAlarmCandidate) => void;
 }) {
   const hasAnyAlarmCandidates = Boolean(report?.specialAlarmCandidates.length);
+  const ruleSummary =
+    config.alarmRules.length > 0
+      ? config.alarmRules
+          .map((rule) => `ca ${describeAlarmRule(rule).classStartLabel}`)
+          .join(", ")
+      : null;
 
   return (
     <section className="h-full rounded-[1.75rem] border border-sky-400/15 bg-[linear-gradient(180deg,_rgba(8,24,43,0.98)_0%,_rgba(6,17,34,0.98)_100%)] p-5 shadow-[0_24px_70px_-36px_rgba(56,189,248,0.35)] xl:col-span-2">
@@ -799,8 +1019,9 @@ function AlarmCard({
         Đặt báo thức máy lạnh
       </h3>
       <p className="mt-2 text-sm leading-6 text-slate-300">
-        Gợi ý tự động dựa trên ca 9h20 và nhóm ca 15h - 16h. Card này luôn nằm
-        cạnh upload để bạn thao tác nhanh khi cần.
+        {ruleSummary
+          ? `Gợi ý tự động cho ${ruleSummary}. Card này luôn nằm cạnh upload để bạn thao tác nhanh khi cần.`
+          : "Chưa có rule nhắc máy lạnh nào. Admin có thể thêm trong dashboard."}
       </p>
 
       <div className="mt-4 rounded-[1.5rem] border border-slate-800 bg-slate-950/55 p-4">
@@ -824,7 +1045,9 @@ function AlarmCard({
             <p className="text-sm leading-6 text-slate-300">
               {hasAnyAlarmCandidates
                 ? "Bạn vẫn có thể chờ tới đúng khung giờ để card này hiện nút đặt báo thức."
-                : "Hiện tool chỉ gợi ý báo thức cho các ca 9h20 và nhóm ca bắt đầu từ 15h đến 16h."}
+                : ruleSummary
+                  ? `Hiện tool chỉ gợi ý báo thức cho ${ruleSummary}.`
+                  : "Chưa có rule nhắc máy lạnh nào được cấu hình."}
             </p>
           </div>
         ) : (
@@ -906,7 +1129,21 @@ function AlarmCard({
   );
 }
 
-function MorningResultCard({ report }: { report: MicFilterReport | null }) {
+interface ResultCardProps {
+  report: MicFilterReport | null;
+  checked: ReadonlySet<string>;
+  onToggle: (key: string) => void;
+  onExport: (kind: ResultTableKind, format: "text" | "image") => Promise<void>;
+}
+
+function MorningResultCard({
+  report,
+  checked,
+  onToggle,
+  onExport,
+}: ResultCardProps) {
+  const progress = report ? getChecklistProgress(report, checked) : null;
+
   return (
     <section className="rounded-[1.75rem] border border-slate-700/90 bg-[linear-gradient(180deg,_rgba(12,23,42,0.98)_0%,_rgba(7,16,31,0.98)_100%)] p-6 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.95)]">
       <div className="mb-6 flex items-start gap-4">
@@ -923,6 +1160,14 @@ function MorningResultCard({ report }: { report: MicFilterReport | null }) {
           </p>
         </div>
       </div>
+
+      {report && progress && (
+        <ResultCardToolbar
+          kind="morning"
+          progress={[{ kind: "morning", ...progress.morning }]}
+          onExport={onExport}
+        />
+      )}
 
       <div className="overflow-hidden rounded-[1.5rem] border border-slate-800 bg-[#07101f]/90">
         <table className="min-w-full text-sm text-slate-200">
@@ -950,7 +1195,13 @@ function MorningResultCard({ report }: { report: MicFilterReport | null }) {
                     {row.floor}
                   </td>
                   <td className="px-4 py-3 text-slate-300">
-                    <RoomTextList rooms={row.rooms} />
+                    <RoomChecklist
+                      kind="morning"
+                      floor={row.floor}
+                      rooms={row.rooms}
+                      checked={checked}
+                      onToggle={onToggle}
+                    />
                   </td>
                 </tr>
               ))
@@ -962,7 +1213,14 @@ function MorningResultCard({ report }: { report: MicFilterReport | null }) {
   );
 }
 
-function MiddayResultCard({ report }: { report: MicFilterReport | null }) {
+function MiddayResultCard({
+  report,
+  checked,
+  onToggle,
+  onExport,
+}: ResultCardProps) {
+  const progress = report ? getChecklistProgress(report, checked) : null;
+
   return (
     <section className="rounded-[1.75rem] border border-slate-700/90 bg-[linear-gradient(180deg,_rgba(16,25,39,0.98)_0%,_rgba(9,16,28,0.98)_100%)] p-6 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.95)]">
       <div className="mb-6 flex items-start gap-4">
@@ -979,6 +1237,18 @@ function MiddayResultCard({ report }: { report: MicFilterReport | null }) {
           </p>
         </div>
       </div>
+
+      {report && progress && (
+        <ResultCardToolbar
+          kind="midday"
+          progress={[
+            { kind: "collect", ...progress.collect },
+            { kind: "distribute", ...progress.distribute },
+            { kind: "replaceBattery", ...progress.replaceBattery },
+          ]}
+          onExport={onExport}
+        />
+      )}
 
       <div className="overflow-hidden rounded-[1.5rem] border border-slate-800 bg-[#07101f]/90">
         <table className="min-w-full text-sm text-slate-200">
@@ -1008,13 +1278,31 @@ function MiddayResultCard({ report }: { report: MicFilterReport | null }) {
                     {row.floor}
                   </td>
                   <td className="px-4 py-3 text-slate-300">
-                    <RoomTextList rooms={row.collectRooms} />
+                    <RoomChecklist
+                      kind="collect"
+                      floor={row.floor}
+                      rooms={row.collectRooms}
+                      checked={checked}
+                      onToggle={onToggle}
+                    />
                   </td>
                   <td className="px-4 py-3 text-slate-300">
-                    <RoomTextList rooms={row.distributeRooms} />
+                    <RoomChecklist
+                      kind="distribute"
+                      floor={row.floor}
+                      rooms={row.distributeRooms}
+                      checked={checked}
+                      onToggle={onToggle}
+                    />
                   </td>
                   <td className="px-4 py-3 text-slate-300">
-                    <RoomTextList rooms={row.replaceBatteryRooms} />
+                    <RoomChecklist
+                      kind="replaceBattery"
+                      floor={row.floor}
+                      rooms={row.replaceBatteryRooms}
+                      checked={checked}
+                      onToggle={onToggle}
+                    />
                   </td>
                 </tr>
               ))
@@ -1114,7 +1402,7 @@ function InfoItem({
   );
 }
 
-function LogicHoverCard() {
+function LogicHoverCard({ config }: { config: MicFilterConfig }) {
   return (
     <div className="group absolute right-4 top-4 z-10">
       <button
@@ -1129,20 +1417,27 @@ function LogicHoverCard() {
         <h3 className="text-lg font-bold text-white">Logic đang áp dụng</h3>
 
         <div className="mt-4 space-y-3 leading-7">
+          {(["morning", "afternoon", "evening"] as const).map((key) => (
+            <p key={key}>
+              {SHIFT_LABELS[key]}:{" "}
+              <span className="font-semibold text-white">
+                {formatClockValue(config.shifts[key].startMinutes)} -{" "}
+                {formatClockValue(config.shifts[key].endMinutes)}
+              </span>
+            </p>
+          ))}
           <p>
-            Ca sáng: <span className="font-semibold text-white">07:30 - 11:35</span>
-          </p>
-          <p>
-            Ca chiều:{" "}
-            <span className="font-semibold text-white">12:30 - 16:35</span>
-          </p>
-          <p>
-            Ca tối: <span className="font-semibold text-white">18:00 - 20:15</span>
+            Đang theo dõi{" "}
+            <span className="font-semibold text-white">
+              {config.wirelessRooms.length} phòng mic không dây
+            </span>
+            . Admin chỉnh danh sách phòng, khung giờ và rule nhắc trong
+            dashboard.
           </p>
           <p>
             Bảng 1 hiển thị các phòng mic không dây có học trong{" "}
             <span className="font-semibold text-white">
-              {SHIFT_WINDOWS.morning.label}
+              {SHIFT_LABELS.morning.toLowerCase()}
             </span>
             .
           </p>
@@ -1151,9 +1446,8 @@ function LogicHoverCard() {
             chiều, Thay Pin nếu dùng cả sáng và chiều.
           </p>
           <p>
-            Nếu file có cột <span className="font-semibold text-white">Ngày học</span>
-            , hệ thống chỉ đọc để hiển thị thông tin, không dùng cột này để
-            chặn xử lý file.
+            Bấm vào số phòng trên bảng để đánh dấu đã làm xong. Kết quả và
+            checklist được giữ tới hết ngày, kể cả khi tải lại trang.
           </p>
         </div>
       </div>
@@ -1225,12 +1519,146 @@ function ToastNotice({
   );
 }
 
-function RoomTextList({ rooms }: { rooms: string[] }) {
+function ResultCardToolbar({
+  kind,
+  progress,
+  onExport,
+}: {
+  kind: ResultTableKind;
+  progress: Array<{ kind: ChecklistKind; done: number; total: number }>;
+  onExport: (kind: ResultTableKind, format: "text" | "image") => Promise<void>;
+}) {
+  const [busyFormat, setBusyFormat] = useState<"text" | "image" | null>(null);
+
+  const runExport = async (format: "text" | "image") => {
+    setBusyFormat(format);
+
+    try {
+      await onExport(kind, format);
+    } finally {
+      setBusyFormat(null);
+    }
+  };
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap gap-2">
+        {progress
+          .filter((item) => item.total > 0)
+          .map((item) => {
+            const isDone = item.done === item.total;
+
+            return (
+              <span
+                key={item.kind}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                  isDone
+                    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100"
+                    : "border-slate-700 bg-slate-900/70 text-slate-300"
+                }`}
+              >
+                {CHECKLIST_KIND_LABELS[item.kind]} {item.done}/{item.total}
+              </span>
+            );
+          })}
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => void runExport("text")}
+          disabled={busyFormat !== null}
+          className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-400/35 hover:text-white disabled:opacity-60"
+        >
+          <Copy size={14} />
+          Copy chữ
+        </button>
+        <button
+          type="button"
+          onClick={() => void runExport("image")}
+          disabled={busyFormat !== null}
+          className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-400/35 hover:text-white disabled:opacity-60"
+        >
+          {busyFormat === "image" ? (
+            <Loader size={14} className="animate-spin" />
+          ) : (
+            <ImageDown size={14} />
+          )}
+          Copy ảnh
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RoomChecklist({
+  kind,
+  floor,
+  rooms,
+  checked,
+  onToggle,
+}: {
+  kind: ChecklistKind;
+  floor: string;
+  rooms: string[];
+  checked: ReadonlySet<string>;
+  onToggle: (key: string) => void;
+}) {
   if (rooms.length === 0) {
     return <span className="text-slate-500">-</span>;
   }
 
-  return <span>{rooms.join(", ")}</span>;
+  const actionLabel = CHECKLIST_KIND_LABELS[kind].toLowerCase();
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {rooms.map((room) => {
+        const key = buildChecklistKey(kind, floor, room);
+        const isDone = checked.has(key);
+
+        return (
+          <button
+            key={room}
+            type="button"
+            onClick={() => onToggle(key)}
+            aria-pressed={isDone}
+            title={
+              isDone
+                ? `Phòng ${room}: ${actionLabel}. Bấm để bỏ đánh dấu.`
+                : `Bấm khi ${actionLabel.replace("đã ", "")} xong phòng ${room}`
+            }
+            className={`inline-flex min-w-9 items-center justify-center gap-1 rounded-lg border px-2.5 py-1 text-sm font-medium transition ${
+              isDone
+                ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-100 line-through decoration-emerald-300/70"
+                : "border-slate-700 bg-slate-900/70 text-slate-100 hover:border-cyan-400/40 hover:text-white"
+            }`}
+          >
+            {isDone && <Check size={13} />}
+            {room}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function readStoredSession() {
+  try {
+    return window.localStorage.getItem(MIC_SESSION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSession(session: MicSession) {
+  try {
+    window.localStorage.setItem(
+      MIC_SESSION_STORAGE_KEY,
+      serializeMicSession(session),
+    );
+  } catch {
+    // Private mode or full storage: the tool still works, just without restore
+  }
 }
 
 function getTodayLabel() {

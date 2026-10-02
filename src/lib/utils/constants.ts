@@ -9,8 +9,13 @@ export const NAV_LINKS = [
   { href: "/contact", label: "Contact" },
 ];
 
-export const ADMIN_NAV_LINKS = [
+export const ADMIN_NAV_LINKS: Array<{
+  href: string;
+  label: string;
+  adminOnly?: boolean;
+}> = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/projects", label: "Projects" },
-  { href: "/dashboard/settings", label: "Settings" },
+  { href: "/dashboard/tools/mic-filter", label: "Tool lọc mic", adminOnly: true },
+  { href: "/dashboard/settings", label: "Settings", adminOnly: true },
 ];

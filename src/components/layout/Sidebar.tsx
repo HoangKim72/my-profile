@@ -11,6 +11,7 @@ import {
   FolderKanban,
   LayoutDashboard,
   LogOut,
+  Mic,
   Settings,
   ShieldCheck,
   UserCircle2,
@@ -35,6 +36,10 @@ const NAV_META: Record<
   "/dashboard/projects": {
     description: "Danh sach folder, trang thai va file tai xuong.",
     icon: FolderKanban,
+  },
+  "/dashboard/tools/mic-filter": {
+    description: "Phòng mic không dây, khung giờ ca và rule nhắc máy lạnh.",
+    icon: Mic,
   },
   "/dashboard/settings": {
     description: "Cap nhat ho so cong khai va hinh anh dai dien.",
@@ -127,7 +132,9 @@ export function Sidebar({ user }: SidebarProps) {
             Dieu huong chinh
           </div>
           <nav className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-1">
-            {ADMIN_NAV_LINKS.map((link) => {
+            {ADMIN_NAV_LINKS.filter(
+              (link) => !link.adminOnly || user.role === "admin",
+            ).map((link) => {
               const isActive = isLinkActive(link.href);
               const navMeta = NAV_META[link.href];
               const Icon = navMeta?.icon ?? LayoutDashboard;

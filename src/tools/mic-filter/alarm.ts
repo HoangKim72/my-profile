@@ -1,56 +1,22 @@
+import {
+  DEFAULT_MIC_FILTER_CONFIG,
+  describeAlarmRule,
+  type MicFilterAlarmRule,
+} from "@/tools/mic-filter/config";
 import type {
   ParsedMicScheduleRow,
   SpecialAlarmCandidate,
 } from "@/tools/mic-filter/types";
 
-interface SpecialAlarmRule {
-  id: string;
-  matchStartFromMinutes: number;
-  matchStartToMinutes: number;
-  classStartMinutes: number;
-  classStartLabel: string;
-  alarmMinutes: number;
-  alarmLabel: string;
-  promptWindowStartMinutes: number;
-  promptWindowEndMinutes: number;
-  promptMessage: string;
-}
-
-const SPECIAL_ALARM_RULES: SpecialAlarmRule[] = [
-  {
-    id: "aircon-0920",
-    matchStartFromMinutes: 9 * 60 + 20,
-    matchStartToMinutes: 9 * 60 + 20,
-    classStartMinutes: 9 * 60 + 20,
-    classStartLabel: "9h20",
-    alarmMinutes: 9 * 60,
-    alarmLabel: "9h",
-    promptWindowStartMinutes: 5 * 60,
-    promptWindowEndMinutes: 9 * 60 + 20,
-    promptMessage:
-      "Phát hiện có ca học lúc 9h20. Có muốn đặt lịch thông báo lúc 9h để bật máy lạnh không?",
-  },
-  {
-    id: "aircon-1520",
-    matchStartFromMinutes: 15 * 60,
-    matchStartToMinutes: 16 * 60,
-    classStartMinutes: 15 * 60,
-    classStartLabel: "15h - 16h",
-    alarmMinutes: 15 * 60,
-    alarmLabel: "15h",
-    promptWindowStartMinutes: 12 * 60 + 30,
-    promptWindowEndMinutes: 15 * 60 + 30,
-    promptMessage:
-      "Phát hiện có ca học bắt đầu từ 15h đến 16h. Có muốn đặt lịch thông báo lúc 15h để bật máy lạnh không?",
-  },
-];
-
-export function buildSpecialAlarmCandidates(rows: ParsedMicScheduleRow[]) {
-  return SPECIAL_ALARM_RULES.flatMap((rule) => {
+export function buildSpecialAlarmCandidates(
+  rows: ParsedMicScheduleRow[],
+  rules: MicFilterAlarmRule[] = DEFAULT_MIC_FILTER_CONFIG.alarmRules,
+) {
+  return rules.flatMap((rule) => {
     const matchedRows = rows.filter(
       (row) =>
-        row.startMinutes >= rule.matchStartFromMinutes &&
-        row.startMinutes <= rule.matchStartToMinutes,
+        row.startMinutes >= rule.matchFromMinutes &&
+        row.startMinutes <= rule.matchToMinutes,
     );
 
     if (matchedRows.length === 0) {
@@ -60,13 +26,10 @@ export function buildSpecialAlarmCandidates(rows: ParsedMicScheduleRow[]) {
     return [
       {
         id: rule.id,
-        classStartMinutes: rule.classStartMinutes,
-        classStartLabel: rule.classStartLabel,
+        ...describeAlarmRule(rule),
         alarmMinutes: rule.alarmMinutes,
-        alarmLabel: rule.alarmLabel,
-        promptMessage: rule.promptMessage,
-        promptWindowStartMinutes: rule.promptWindowStartMinutes,
-        promptWindowEndMinutes: rule.promptWindowEndMinutes,
+        promptWindowStartMinutes: rule.promptFromMinutes,
+        promptWindowEndMinutes: rule.promptToMinutes,
         matchedScheduleCount: matchedRows.length,
         matchedRooms: sortRoomDisplays(
           matchedRows.map((row) => `${row.floor}.${row.roomDisplay}`),

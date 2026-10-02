@@ -186,3 +186,16 @@ model ContactMessage {
   @@index([isRead])
   @@map("contact_messages")
 }
+
+// ============= TOOL SETTINGS =============
+
+// Key/value settings for the web tools, e.g. key "mic-filter" holds the
+// MicFilterConfig JSON (wireless rooms, shift windows, alarm rules)
+model ToolSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("tool_settings")
+}

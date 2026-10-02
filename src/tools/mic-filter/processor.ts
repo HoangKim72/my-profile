@@ -3,9 +3,11 @@ import {
   ACCEPTED_EXCEL_FILE_TYPES,
   MAX_MIC_FILTER_FILE_SIZE,
   REQUIRED_MIC_FILTER_COLUMNS,
-  SHIFT_WINDOWS,
-  WIRELESS_MIC_ROOMS,
 } from "@/tools/mic-filter/constants";
+import {
+  DEFAULT_MIC_FILTER_CONFIG,
+  type MicFilterConfig,
+} from "@/tools/mic-filter/config";
 import { buildSpecialAlarmCandidates } from "@/tools/mic-filter/alarm";
 import type {
   MicFilterReport,
@@ -17,7 +19,6 @@ type SheetCell = string | number | boolean | Date | null | undefined;
 
 const ACCEPTED_EXCEL_FILE_TYPE_SET = new Set<string>(ACCEPTED_EXCEL_FILE_TYPES);
 const ACCEPTED_EXCEL_EXTENSION_SET = new Set<string>(ACCEPTED_EXCEL_EXTENSIONS);
-const WIRELESS_MIC_ROOM_SET = new Set<string>(WIRELESS_MIC_ROOMS);
 const IGNORED_MIC_NOTE_KEYWORDS = ["da bao nghi", "khong phat mic"] as const;
 const REQUIRED_COLUMN_KEYS = {
   roomCode: normalizeHeaderLabel("Mã phòng"),
@@ -29,6 +30,7 @@ const REQUIRED_COLUMN_KEYS = {
 
 export async function processMicFilterFile(
   file: File,
+  config: MicFilterConfig = DEFAULT_MIC_FILTER_CONFIG,
 ): Promise<MicFilterReport> {
   validateExcelFile(file);
 
@@ -51,9 +53,9 @@ export async function processMicFilterFile(
     defval: null,
   });
 
-  const { parsedRows, hasStudyDateColumn } = parseWorksheetRows(rows);
+  const { parsedRows, hasStudyDateColumn } = parseWorksheetRows(rows, config);
 
-  return buildMicFilterReport(parsedRows, {
+  return buildMicFilterReport(parsedRows, config, {
     fileName: file.name,
     sheetName,
     hasStudyDateColumn,
@@ -81,7 +83,10 @@ function validateExcelFile(file: File) {
   }
 }
 
-function parseWorksheetRows(sheetRows: SheetCell[][]) {
+function parseWorksheetRows(
+  sheetRows: SheetCell[][],
+  config: MicFilterConfig,
+) {
   const [headerRow, ...dataRows] = sheetRows;
 
   if (!headerRow || headerRow.length === 0) {
@@ -109,7 +114,7 @@ function parseWorksheetRows(sheetRows: SheetCell[][]) {
   const hasStudyDateColumn = columnIndexes.has(REQUIRED_COLUMN_KEYS.studyDate);
   const parsedRows = dataRows
     .map((row, index) =>
-      parseDataRow(row, index + 2, columnIndexes, hasStudyDateColumn),
+      parseDataRow(row, index + 2, columnIndexes, hasStudyDateColumn, config),
     )
     .filter((row): row is ParsedMicScheduleRow => row !== null);
 
@@ -128,6 +133,7 @@ function parseDataRow(
   rowNumber: number,
   columnIndexes: Map<string, number>,
   hasStudyDateColumn: boolean,
+  config: MicFilterConfig,
 ): ParsedMicScheduleRow | null {
   if (row.every((cell) => isBlankCell(cell))) {
     return null;
@@ -191,26 +197,27 @@ function parseDataRow(
     usesMorning: overlapsShift(
       startMinutes,
       endMinutes,
-      SHIFT_WINDOWS.morning.startMinutes,
-      SHIFT_WINDOWS.morning.endMinutes,
+      config.shifts.morning.startMinutes,
+      config.shifts.morning.endMinutes,
     ),
     usesAfternoon: overlapsShift(
       startMinutes,
       endMinutes,
-      SHIFT_WINDOWS.afternoon.startMinutes,
-      SHIFT_WINDOWS.afternoon.endMinutes,
+      config.shifts.afternoon.startMinutes,
+      config.shifts.afternoon.endMinutes,
     ),
     usesEvening: overlapsShift(
       startMinutes,
       endMinutes,
-      SHIFT_WINDOWS.evening.startMinutes,
-      SHIFT_WINDOWS.evening.endMinutes,
+      config.shifts.evening.startMinutes,
+      config.shifts.evening.endMinutes,
     ),
   };
 }
 
 function buildMicFilterReport(
   rows: ParsedMicScheduleRow[],
+  config: MicFilterConfig,
   options: {
     fileName: string;
     sheetName: string;
@@ -227,11 +234,11 @@ function buildMicFilterReport(
     fileDateKeys.size === 1 ? [...fileDateKeys][0] : null;
   const specialAlarmCandidates = buildSpecialAlarmCandidates(
     rows.filter((row) => !row.isIgnoredForMic),
+    config.alarmRules,
   );
 
-  const wirelessRows = rows.filter((row) =>
-    WIRELESS_MIC_ROOM_SET.has(row.roomCode),
-  );
+  const wirelessRoomSet = new Set(config.wirelessRooms);
+  const wirelessRows = rows.filter((row) => wirelessRoomSet.has(row.roomCode));
   const roomSummary = new Map<
     string,
     {

@@ -7,8 +7,9 @@ import {
   MicFilterTool,
   type MicFilterMode,
 } from "@/components/tools/MicFilterTool";
+import type { MicFilterConfig } from "@/tools/mic-filter/config";
 
-export function MicFilterWorkspace() {
+export function MicFilterWorkspace({ config }: { config: MicFilterConfig }) {
   const [mode, setMode] = useState<MicFilterMode>("filter");
 
   return (
@@ -62,7 +63,7 @@ export function MicFilterWorkspace() {
           </div>
 
           <div className="relative">
-            <MicFilterTool mode={mode} onModeChange={setMode} />
+            <MicFilterTool mode={mode} onModeChange={setMode} config={config} />
           </div>
         </section>
       </div>
