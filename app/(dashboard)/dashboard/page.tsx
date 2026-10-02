@@ -342,13 +342,15 @@ export default async function DashboardPage() {
               Loi tat nhanh
             </h3>
             <div className="mt-5 space-y-3">
-              <Link
-                href="/dashboard/projects/new"
-                className="flex items-center justify-between rounded-[22px] border border-slate-200 px-4 py-4 text-sm font-medium text-slate-700 transition-colors hover:border-blue-200 hover:text-blue-700 dark:border-slate-800 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:text-blue-200"
-              >
-                Tao folder moi
-                <ArrowRight size={16} />
-              </Link>
+              {user.role === "admin" && (
+                <Link
+                  href="/dashboard/projects/new"
+                  className="flex items-center justify-between rounded-[22px] border border-slate-200 px-4 py-4 text-sm font-medium text-slate-700 transition-colors hover:border-blue-200 hover:text-blue-700 dark:border-slate-800 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:text-blue-200"
+                >
+                  Tao folder moi
+                  <ArrowRight size={16} />
+                </Link>
+              )}
               <Link
                 href="/dashboard/settings"
                 className="flex items-center justify-between rounded-[22px] border border-slate-200 px-4 py-4 text-sm font-medium text-slate-700 transition-colors hover:border-blue-200 hover:text-blue-700 dark:border-slate-800 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:text-blue-200"

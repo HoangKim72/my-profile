@@ -35,6 +35,7 @@ export default async function ProjectsPage() {
   const result = await getUserProjects();
   const projects = result.success ? result.projects ?? [] : [];
 
+  const isAdmin = user.role === "admin";
   const totalProjects = projects.length;
   const readyArchives = projects.filter((project) => project.files.length > 0).length;
   const publicProjects = projects.filter(
@@ -86,10 +87,12 @@ export default async function ProjectsPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link href="/dashboard/projects/new" className="btn-primary">
-              <FolderPlus size={16} />
-              Tạo folder mới
-            </Link>
+            {isAdmin && (
+              <Link href="/dashboard/projects/new" className="btn-primary">
+                <FolderPlus size={16} />
+                Tạo folder mới
+              </Link>
+            )}
             <Link href="/projects" className="btn-secondary">
               <Eye size={16} />
               Xem trang public
@@ -229,9 +232,11 @@ export default async function ProjectsPage() {
             Bắt đầu bằng cách tạo folder mới, tải archive lên và kiểm tra lại
             trang public.
           </p>
-          <Link href="/dashboard/projects/new" className="btn-primary mt-6">
-            Tạo folder đầu tiên
-          </Link>
+          {isAdmin && (
+            <Link href="/dashboard/projects/new" className="btn-primary mt-6">
+              Tạo folder đầu tiên
+            </Link>
+          )}
         </section>
       )}
     </div>

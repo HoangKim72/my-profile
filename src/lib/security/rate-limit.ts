@@ -45,6 +45,11 @@ export const rateLimitPresets = {
     maxRequests: 120,
     blockDurationMs: 5 * 60 * 1000,
   },
+  contactSubmit: {
+    windowMs: 10 * 60 * 1000,
+    maxRequests: 3,
+    blockDurationMs: 30 * 60 * 1000,
+  },
   authPagePosts: {
     windowMs: 10 * 60 * 1000,
     maxRequests: 12,

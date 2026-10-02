@@ -3,10 +3,10 @@
 export const dynamic = "force-dynamic";
 
 import { ProjectForm } from "@/components/projects/ProjectForm";
-import { requireAuth } from "@/lib/auth/check-auth";
+import { requireAdmin } from "@/lib/auth/check-auth";
 
 export default async function NewProjectPage() {
-  await requireAuth();
+  await requireAdmin();
 
   return (
     <div className="max-w-4xl">

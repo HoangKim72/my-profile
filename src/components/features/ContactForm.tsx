@@ -7,20 +7,25 @@ import {
   contactMessageSchema,
   ContactMessageInput,
 } from "@/lib/validators/contact";
+import type { ContactActionResult } from "@/actions/contact";
+
+const EMPTY_FORM = {
+  name: "",
+  email: "",
+  subject: "",
+  message: "",
+  website: "",
+};
 
 interface ContactFormProps {
-  onSubmit: (data: ContactMessageInput) => Promise<{ success: boolean }>;
+  onSubmit: (data: ContactMessageInput) => Promise<ContactActionResult>;
 }
 
 export function ContactForm({ onSubmit }: ContactFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
+  const [isSent, setIsSent] = useState(false);
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -28,21 +33,34 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setError(null);
+    setIsSent(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setIsSent(false);
 
     try {
-      const validated = contactMessageSchema.parse(formData);
-      await onSubmit(validated);
-      setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Failed to submit form",
-      );
+      const parsed = contactMessageSchema.safeParse(formData);
+
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
+        return;
+      }
+
+      const result = await onSubmit(parsed.data);
+
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      setFormData(EMPTY_FORM);
+      setIsSent(true);
+    } catch {
+      setError("Không thể gửi tin nhắn lúc này. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);
     }
@@ -55,6 +73,25 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
           {error}
         </div>
       )}
+
+      {isSent && (
+        <div className="p-4 bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-100 rounded-lg">
+          Đã gửi tin nhắn. Mình sẽ phản hồi sớm nhất có thể.
+        </div>
+      )}
+
+      <div className="hidden" aria-hidden="true">
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={formData.website}
+          onChange={handleChange}
+        />
+      </div>
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium mb-2">

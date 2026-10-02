@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/check-auth";
 import {
   canChangeProjectVisibility,
+  canCreateProject,
   canDeleteProject,
   canEditProject,
   canManageProjectPermissions,
@@ -240,6 +241,7 @@ export async function createProject(data: unknown) {
   try {
     const user = await getCurrentUser();
     if (!user) throw new Error("Unauthorized");
+    if (!canCreateProject(user.role)) throw new Error("Forbidden");
 
     const validated = createProjectSchema.parse(data);
     const sharedUsers = normalizeSharedUsers(validated.sharedUsers, user.id);
