@@ -1,7 +1,7 @@
 import type { MicFilterReport } from "@/tools/mic-filter/types";
 
 // Persists one working day of the mic tool in localStorage: the filtered
-// report, the checklist and the "Kết ca" form. Anything from another day is
+// report and the "Kết ca" form. Anything from another day is
 // dropped so a new shift always starts clean.
 
 export const MIC_SESSION_STORAGE_KEY = "mic-filter:session:v1";
@@ -24,22 +24,8 @@ export interface MicSession {
   version: 1;
   dayKey: string;
   report: MicFilterReport | null;
-  checked: string[];
   summary: ShiftSummaryState;
 }
-
-export type ChecklistKind =
-  | "morning"
-  | "collect"
-  | "distribute"
-  | "replaceBattery";
-
-export const CHECKLIST_KIND_LABELS: Record<ChecklistKind, string> = {
-  morning: "Đã soạn",
-  collect: "Đã thu",
-  distribute: "Đã phát",
-  replaceBattery: "Đã thay pin",
-};
 
 export function getDayKey(date: Date) {
   return [
@@ -74,7 +60,6 @@ export function createEmptySession(now: Date): MicSession {
     version: 1,
     dayKey: getDayKey(now),
     report: null,
-    checked: [],
     summary: createEmptySummary(now),
   };
 }
@@ -115,7 +100,6 @@ export function parseMicSession(
     version: 1,
     dayKey: value.dayKey,
     report: isReport(value.report) ? value.report : null,
-    checked: toStringList(value.checked),
     summary: {
       shift:
         summary.shift === "afternoon" || summary.shift === "morning"
@@ -134,48 +118,6 @@ export function parseMicSession(
       extraBatteryCount: toCount(summary.extraBatteryCount),
     },
   };
-}
-
-export function buildChecklistKey(
-  kind: ChecklistKind,
-  floor: string,
-  room: string,
-) {
-  return `${kind}:${floor}:${room}`;
-}
-
-export function getChecklistProgress(
-  report: MicFilterReport,
-  checked: ReadonlySet<string>,
-) {
-  const progress: Record<ChecklistKind, { done: number; total: number }> = {
-    morning: { done: 0, total: 0 },
-    collect: { done: 0, total: 0 },
-    distribute: { done: 0, total: 0 },
-    replaceBattery: { done: 0, total: 0 },
-  };
-
-  const count = (kind: ChecklistKind, floor: string, rooms: string[]) => {
-    for (const room of rooms) {
-      progress[kind].total += 1;
-
-      if (checked.has(buildChecklistKey(kind, floor, room))) {
-        progress[kind].done += 1;
-      }
-    }
-  };
-
-  for (const row of report.morningRows) {
-    count("morning", row.floor, row.rooms);
-  }
-
-  for (const row of report.middayRows) {
-    count("collect", row.floor, row.collectRooms);
-    count("distribute", row.floor, row.distributeRooms);
-    count("replaceBattery", row.floor, row.replaceBatteryRooms);
-  }
-
-  return progress;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,440 +1,206 @@
 "use client";
 
-import { ArrowLeft, Copy, Info, Minus, Plus, RotateCcw } from "lucide-react";
-import type { ShiftSummaryShift } from "@/tools/mic-filter/session";
+import { FileDown, Minus, Plus, RotateCcw, X } from "lucide-react";
+import type {
+  ShiftSummaryShift,
+  ShiftSummaryState,
+} from "@/tools/mic-filter/session";
 
-export type { ShiftSummaryShift };
+type CountField =
+  | "acIncrease"
+  | "acDecrease"
+  | "usedBatteryCount"
+  | "extraBatteryCount";
+
+type DetailField = "roomFeedbackDetails" | "borrowedItemDetails";
 
 export interface ShiftSummaryPanelProps {
-  shift: ShiftSummaryShift;
-  shiftLabel: string;
-  shiftHeadingLabel: string;
-  summaryDate: string;
+  summary: ShiftSummaryState;
   reportDateLabel: string | null;
-  acIncrease: number;
-  acDecrease: number;
-  acTotal: number;
-  roomFeedbackCount: number;
-  roomFeedbackDetails: string[];
-  borrowedItemCount: number;
-  borrowedItemDetails: string[];
-  usedBatteryCount: number;
-  extraBatteryCount: number;
-  totalBattery: number;
-  summaryText: string;
-  onBack: () => void;
   onShiftChange: (shift: ShiftSummaryShift) => void;
   onSummaryDateChange: (value: string) => void;
   onUseReportDate?: () => void;
-  onAdjustAcIncrease: (delta: number) => void;
-  onAdjustAcDecrease: (delta: number) => void;
-  onIncreaseRoomFeedback: () => void;
-  onDecreaseRoomFeedback: () => void;
-  onUpdateRoomFeedbackDetail: (index: number, value: string) => void;
-  onIncreaseBorrowedItem: () => void;
-  onDecreaseBorrowedItem: () => void;
-  onUpdateBorrowedItemDetail: (index: number, value: string) => void;
-  onAdjustUsedBattery: (delta: number) => void;
-  onAdjustExtraBattery: (delta: number) => void;
-  onCopySummary: () => void;
+  onAdjustCount: (field: CountField, delta: number) => void;
+  onAddDetail: (field: DetailField) => void;
+  onUpdateDetail: (field: DetailField, index: number, value: string) => void;
+  onRemoveDetail: (field: DetailField, index: number) => void;
   onResetSummary: () => void;
 }
 
+const SHIFT_NAMES: Record<ShiftSummaryShift, string> = {
+  morning: "Ca sáng",
+  afternoon: "Ca chiều",
+};
+
+const COUNTERS: Array<{ field: CountField; label: string }> = [
+  { field: "acIncrease", label: "Máy lạnh tăng" },
+  { field: "acDecrease", label: "Máy lạnh giảm" },
+  { field: "usedBatteryCount", label: "Pin đã dùng" },
+  { field: "extraBatteryCount", label: "Pin phát sinh" },
+];
+
 export function ShiftSummaryPanel({
-  shift,
-  shiftLabel,
-  shiftHeadingLabel,
-  summaryDate,
+  summary,
   reportDateLabel,
-  acIncrease,
-  acDecrease,
-  acTotal,
-  roomFeedbackCount,
-  roomFeedbackDetails,
-  borrowedItemCount,
-  borrowedItemDetails,
-  usedBatteryCount,
-  extraBatteryCount,
-  totalBattery,
-  summaryText,
-  onBack,
   onShiftChange,
   onSummaryDateChange,
   onUseReportDate,
-  onAdjustAcIncrease,
-  onAdjustAcDecrease,
-  onIncreaseRoomFeedback,
-  onDecreaseRoomFeedback,
-  onUpdateRoomFeedbackDetail,
-  onIncreaseBorrowedItem,
-  onDecreaseBorrowedItem,
-  onUpdateBorrowedItemDetail,
-  onAdjustUsedBattery,
-  onAdjustExtraBattery,
-  onCopySummary,
+  onAdjustCount,
+  onAddDetail,
+  onUpdateDetail,
+  onRemoveDetail,
   onResetSummary,
 }: ShiftSummaryPanelProps) {
+  const summaryDate = summary.summaryDate.trim();
+  const canUseReportDate =
+    Boolean(onUseReportDate) && reportDateLabel !== null && reportDateLabel !== summaryDate;
+
+  const exportPdf = () => {
+    const previousTitle = document.title;
+    const shiftSlug = summary.shift === "morning" ? "sang" : "chieu";
+
+    // The browser uses the page title as the default PDF file name
+    document.title = `ket-ca-${shiftSlug}-${summaryDate.replace(/\//g, "-")}`;
+    window.addEventListener(
+      "afterprint",
+      () => {
+        document.title = previousTitle;
+      },
+      { once: true },
+    );
+    window.print();
+  };
+
   return (
-    <section className="overflow-hidden rounded-[1.85rem] border border-cyan-400/15 bg-[linear-gradient(180deg,_rgba(7,17,38,0.98)_0%,_rgba(4,10,24,0.98)_100%)] p-6 shadow-[0_30px_90px_-45px_rgba(34,211,238,0.45)]">
-      <div className="flex flex-col gap-5 border-b border-slate-800/80 pb-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/80">
-            Chế độ tổng kết
-          </p>
-          <h2 className="mt-3 text-4xl font-bold tracking-tight text-white">
-            Kết ca
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-300">
-            Tổng hợp nhanh tình hình ca làm việc trong ngày, sinh sẵn nội dung
-            để copy và gửi đi ngay.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100">
-            Đang kết {shiftLabel}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("Xoá toàn bộ số liệu và ghi chú kết ca đang nhập?")) {
-                onResetSummary();
-              }
-            }}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-red-400/40 hover:text-white"
-          >
-            <RotateCcw size={16} />
-            Xoá dữ liệu kết ca
-          </button>
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-400/35 hover:text-white"
-          >
-            <ArrowLeft size={16} />
-            Quay lại lọc lịch
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="space-y-6">
-          <section className="rounded-[1.5rem] border border-sky-400/20 bg-[linear-gradient(180deg,_rgba(8,24,43,0.9)_0%,_rgba(5,14,28,0.96)_100%)] p-5 shadow-[0_24px_60px_-42px_rgba(56,189,248,0.55)]">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-white">
-                  Chọn ca và ngày tổng kết
-                </h3>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 self-start">
-                <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-100">
-                  {shiftHeadingLabel}
-                </span>
-                <InfoHoverButton content="Chọn ca sáng hoặc ca chiều để nội dung kết ca đổi theo đúng phiên làm việc. Ngày tổng kết sẽ tự điền theo file đã lọc nếu có, nhưng bạn vẫn có thể chỉnh tay khi cần." />
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <ShiftSelectButton
-                label="Ca sáng"
-                isActive={shift === "morning"}
-                onClick={() => onShiftChange("morning")}
-              />
-              <ShiftSelectButton
-                label="Ca chiều"
-                isActive={shift === "afternoon"}
-                onClick={() => onShiftChange("afternoon")}
-              />
-            </div>
-
-            <div className="mt-5 rounded-[1.25rem] border border-sky-400/15 bg-[#071425]/90 p-4">
-              <label
-                htmlFor="shift-summary-date"
-                className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+    <section className="overflow-hidden rounded-2xl border border-t-4 border-mic-line border-t-mic-done bg-mic-surface">
+      <div className="grid gap-5 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="grid content-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="flex flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-4">
+            {(["morning", "afternoon"] as const).map((shift) => (
+              <button
+                key={shift}
+                type="button"
+                aria-pressed={summary.shift === shift}
+                onClick={() => onShiftChange(shift)}
+                className={`h-9 rounded-[10px] border px-4 text-sm font-semibold transition ${
+                  summary.shift === shift
+                    ? "border-mic-done bg-mic-done text-mic-on-done"
+                    : "border-mic-line-strong bg-mic-surface hover:border-mic-done"
+                }`}
               >
-                Ngày tổng kết
+                {SHIFT_NAMES[shift]}
+              </button>
+            ))}
+            <div className="ml-auto flex items-center gap-2">
+              {canUseReportDate && (
+                <button
+                  type="button"
+                  onClick={onUseReportDate}
+                  className="text-[13px] font-semibold text-mic-done hover:underline"
+                >
+                  Dùng ngày {reportDateLabel}
+                </button>
+              )}
+              <label htmlFor="shift-summary-date" className="sr-only">
+                Ngày kết ca
               </label>
               <input
                 id="shift-summary-date"
                 type="text"
-                value={summaryDate}
+                inputMode="numeric"
+                value={summary.summaryDate}
                 onChange={(event) => onSummaryDateChange(event.target.value)}
-                className="mt-3 w-full rounded-2xl border border-sky-400/20 bg-slate-950/80 px-4 py-3 text-sm font-medium text-white outline-none transition placeholder:text-slate-500 focus:border-sky-400/45"
-                placeholder="27/03/2026"
-              />
-
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-300">
-                {reportDateLabel ? (
-                  <>
-                    <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-sky-100">
-                      Đang có ngày từ file: {reportDateLabel}
-                    </span>
-                    {onUseReportDate && (
-                      <button
-                        type="button"
-                        onClick={onUseReportDate}
-                        className="rounded-full border border-sky-400/20 bg-slate-950/70 px-3 py-1 font-medium text-slate-200 transition hover:border-sky-300/45 hover:text-white"
-                      >
-                        Dùng ngày trong file
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <span className="rounded-full border border-sky-400/15 bg-slate-950/70 px-3 py-1 text-slate-300">
-                    Chưa có file lịch, đang dùng ngày hiện tại.
-                  </span>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[1.5rem] border border-cyan-400/20 bg-[linear-gradient(180deg,_rgba(6,24,32,0.9)_0%,_rgba(5,14,24,0.96)_100%)] p-5 shadow-[0_24px_60px_-42px_rgba(34,211,238,0.55)]">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-white">
-                  Phản hồi máy lạnh
-                </h3>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 self-start">
-                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-sm font-semibold text-cyan-100">
-                  Tổng {acTotal}
-                </span>
-                <InfoHoverButton content="Theo dõi riêng số phản hồi tăng và số phản hồi giảm của máy lạnh. Hệ thống sẽ tự cộng hai giá trị này để ra tổng phản hồi trong phần preview." />
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <CounterControl
-                label="Máy lạnh tăng"
-                value={acIncrease}
-                tone="cyan"
-                onDecrease={() => onAdjustAcIncrease(-1)}
-                onIncrease={() => onAdjustAcIncrease(1)}
-              />
-              <CounterControl
-                label="Máy lạnh giảm"
-                value={acDecrease}
-                tone="cyan"
-                onDecrease={() => onAdjustAcDecrease(-1)}
-                onIncrease={() => onAdjustAcDecrease(1)}
+                placeholder="03/10/2026"
+                className="h-9 w-32 rounded-[10px] border border-mic-line-strong bg-mic-surface px-3 font-[family-name:var(--font-mic-mono)] text-sm outline-none focus:border-mic-done"
               />
             </div>
+          </div>
 
-            <p className="mt-4 rounded-[1.25rem] border border-cyan-400/15 bg-[#071823]/90 px-4 py-3 text-sm leading-6 text-slate-300">
-              Có <span className="font-semibold text-white">{acTotal}</span>{" "}
-              phản hồi máy lạnh ({acIncrease} tăng, {acDecrease} giảm).
-            </p>
-          </section>
+          {COUNTERS.map(({ field, label }) => (
+            <Counter
+              key={field}
+              label={label}
+              value={summary[field]}
+              onChange={(delta) => onAdjustCount(field, delta)}
+            />
+          ))}
 
-          <section className="rounded-[1.5rem] border border-amber-400/20 bg-[linear-gradient(180deg,_rgba(38,24,9,0.9)_0%,_rgba(23,14,6,0.96)_100%)] p-5 shadow-[0_24px_60px_-42px_rgba(251,191,36,0.45)]">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-white">Pin sử dụng</h3>
-              </div>
+          <DetailList
+            title="Phản hồi phòng học"
+            placeholder="VD: 05.07 loa rè"
+            items={summary.roomFeedbackDetails}
+            onAdd={() => onAddDetail("roomFeedbackDetails")}
+            onUpdate={(index, value) => onUpdateDetail("roomFeedbackDetails", index, value)}
+            onRemove={(index) => onRemoveDetail("roomFeedbackDetails", index)}
+          />
+          <DetailList
+            title="Vật tư cho mượn"
+            placeholder="VD: 1 dây HDMI cho P.302"
+            items={summary.borrowedItemDetails}
+            onAdd={() => onAddDetail("borrowedItemDetails")}
+            onUpdate={(index, value) => onUpdateDetail("borrowedItemDetails", index, value)}
+            onRemove={(index) => onRemoveDetail("borrowedItemDetails", index)}
+          />
 
-              <div className="flex flex-wrap items-center gap-3 self-start">
-                <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-sm font-semibold text-amber-100">
-                  Tổng {totalBattery} viên
-                </span>
-                <InfoHoverButton content="Nhập số pin đã dùng trong ca và số pin phát sinh thêm. Hai giá trị này sẽ được cộng lại để hiển thị tổng số pin đã dùng trong báo cáo." />
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <CounterControl
-                label="Pin đã dùng"
-                value={usedBatteryCount}
-                tone="amber"
-                onDecrease={() => onAdjustUsedBattery(-1)}
-                onIncrease={() => onAdjustUsedBattery(1)}
-              />
-              <CounterControl
-                label="Pin phát sinh thêm"
-                value={extraBatteryCount}
-                tone="amber"
-                onDecrease={() => onAdjustExtraBattery(-1)}
-                onIncrease={() => onAdjustExtraBattery(1)}
-              />
-            </div>
-
-            <p className="mt-4 rounded-[1.25rem] border border-amber-400/15 bg-[#1a1206]/70 px-4 py-3 text-sm leading-6 text-slate-300">
-              {shiftHeadingLabel} sử dụng{" "}
-              <span className="font-semibold text-white">
-                {usedBatteryCount}
-              </span>{" "}
-              viên pin, phát sinh thêm {extraBatteryCount} viên, tổng{" "}
-              <span className="font-semibold text-white">{totalBattery}</span>{" "}
-              viên.
-            </p>
-          </section>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Xoá toàn bộ số liệu kết ca đang nhập?")) {
+                onResetSummary();
+              }
+            }}
+            className="inline-flex items-center gap-1.5 justify-self-start text-[13px] font-medium text-mic-muted transition hover:text-mic-danger sm:col-span-2 xl:col-span-4"
+          >
+            <RotateCcw size={14} />
+            Xoá số liệu
+          </button>
         </div>
 
-        <div className="space-y-6">
-          <DetailListCard
-            title="Phản hồi phòng học"
-            description="Mỗi lần tăng sẽ sinh thêm một ô nhập chi tiết để bạn ghi nội dung cần báo lại."
-            badge={`Có ${roomFeedbackCount} phản hồi`}
-            count={roomFeedbackCount}
-            details={roomFeedbackDetails}
-            emptyText="Chưa có phản hồi phòng học nào trong ca này."
-            placeholderPrefix="Nội dung phản hồi phòng học"
-            tone="rose"
-            onIncrease={onIncreaseRoomFeedback}
-            onDecrease={onDecreaseRoomFeedback}
-            onDetailChange={onUpdateRoomFeedbackDetail}
-          />
-
-          <DetailListCard
-            title="Vật tư cho mượn"
-            description="Ghi lại từng vật tư hoặc bộ vật tư đã cho mượn trong ca làm việc."
-            badge={`Đã cho mượn ${borrowedItemCount} vật tư`}
-            count={borrowedItemCount}
-            details={borrowedItemDetails}
-            emptyText="Chưa có vật tư nào được cho mượn."
-            placeholderPrefix="Chi tiết vật tư cho mượn"
-            tone="indigo"
-            onIncrease={onIncreaseBorrowedItem}
-            onDecrease={onDecreaseBorrowedItem}
-            onDetailChange={onUpdateBorrowedItemDetail}
-          />
+        <div className="grid content-start gap-3">
+          <ReportSheet summary={summary} />
+          <button
+            type="button"
+            onClick={exportPdf}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[10px] bg-mic-done text-sm font-semibold text-mic-on-done transition hover:opacity-90"
+          >
+            <FileDown size={18} />
+            Xuất PDF
+          </button>
         </div>
       </div>
-
-      <section className="mt-6 rounded-[1.5rem] border border-emerald-400/20 bg-[linear-gradient(180deg,_rgba(6,26,24,0.98)_0%,_rgba(4,16,15,0.98)_100%)] p-5 shadow-[0_24px_60px_-40px_rgba(16,185,129,0.5)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200/80">
-              Preview nội dung
-            </p>
-            <h3 className="mt-3 text-2xl font-bold text-white">
-              Nội dung kết ca
-            </h3>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 self-start">
-            <InfoHoverButton content="Phần này tự tạo sẵn nội dung kết ca theo dữ liệu bạn vừa nhập ở các khối bên trên. Bạn chỉ cần kiểm tra lại và bấm copy để gửi đi." />
-            <button
-              type="button"
-              onClick={onCopySummary}
-              className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-            >
-              <Copy size={16} />
-              Copy nội dung kết ca
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-[1.25rem] border border-emerald-400/10 bg-[#041513]/90 p-4">
-          <pre className="whitespace-pre-wrap break-words text-sm leading-7 text-emerald-50/95">
-            {summaryText}
-          </pre>
-        </div>
-      </section>
     </section>
   );
 }
 
-function ShiftSelectButton({
-  label,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
-        isActive
-          ? "border border-cyan-300/40 bg-cyan-400/15 text-cyan-100 shadow-[0_12px_28px_-18px_rgba(34,211,238,0.9)]"
-          : "border border-slate-700 bg-slate-900/80 text-slate-300 hover:border-cyan-400/30 hover:text-white"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function InfoHoverButton({ content }: { content: string }) {
-  return (
-    <div className="group relative">
-      <button
-        type="button"
-        aria-label="Xem thông tin thêm"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-300 transition hover:border-cyan-400/30 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300/50"
-      >
-        <Info size={16} />
-      </button>
-
-      <div className="pointer-events-none absolute right-0 top-full z-20 mt-3 w-[min(21rem,calc(100vw-3rem))] rounded-[1.25rem] border border-slate-700 bg-[#07101f] p-4 text-sm leading-6 text-slate-300 opacity-0 shadow-2xl shadow-slate-950/50 transition duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-        {content}
-      </div>
-    </div>
-  );
-}
-
-function CounterControl({
+function Counter({
   label,
   value,
-  tone,
-  onDecrease,
-  onIncrease,
+  onChange,
 }: {
   label: string;
   value: number;
-  tone: "cyan" | "amber";
-  onDecrease: () => void;
-  onIncrease: () => void;
+  onChange: (delta: number) => void;
 }) {
-  const toneClasses = {
-    cyan: {
-      panel: "border-cyan-400/15 bg-[#071823]/90",
-      value: "border-cyan-400/15 bg-slate-950/80",
-      minus:
-        "border-cyan-400/20 bg-slate-950/80 text-slate-200 hover:border-cyan-300/45 hover:text-white",
-      plus: "bg-cyan-400 text-slate-950 hover:bg-cyan-300",
-    },
-    amber: {
-      panel: "border-amber-400/15 bg-[#1a1206]/60",
-      value: "border-amber-400/15 bg-slate-950/80",
-      minus:
-        "border-amber-400/20 bg-slate-950/80 text-slate-200 hover:border-amber-300/45 hover:text-white",
-      plus: "bg-amber-400 text-slate-950 hover:bg-amber-300",
-    },
-  } as const;
-
-  const palette = toneClasses[tone];
-
   return (
-    <div className={`rounded-[1.25rem] border p-4 ${palette.panel}`}>
-      <p className="text-sm font-semibold text-white">{label}</p>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
+    <div className="grid gap-1.5 rounded-xl border border-mic-line p-2.5">
+      <span className="text-[13px] text-mic-muted">{label}</span>
+      <div className="flex items-center overflow-hidden rounded-[10px] border border-mic-line-strong">
         <button
           type="button"
-          onClick={onDecrease}
-          className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${palette.minus}`}
+          onClick={() => onChange(-1)}
           aria-label={`Giảm ${label.toLowerCase()}`}
+          className="grid h-9 w-9 place-items-center bg-mic-sunken transition hover:text-mic-done"
         >
           <Minus size={16} />
         </button>
-
-        <div
-          className={`min-w-[5rem] rounded-2xl border px-4 py-3 text-center text-2xl font-bold text-white ${palette.value}`}
-        >
+        <b className="flex-1 text-center font-[family-name:var(--font-mic-mono)] text-base">
           {value}
-        </div>
-
+        </b>
         <button
           type="button"
-          onClick={onIncrease}
-          className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl transition ${palette.plus}`}
+          onClick={() => onChange(1)}
           aria-label={`Tăng ${label.toLowerCase()}`}
+          className="grid h-9 w-9 place-items-center bg-mic-sunken transition hover:text-mic-done"
         >
           <Plus size={16} />
         </button>
@@ -443,131 +209,111 @@ function CounterControl({
   );
 }
 
-function DetailListCard({
+function DetailList({
   title,
-  description,
-  badge,
-  count,
-  details,
-  emptyText,
-  placeholderPrefix,
-  tone,
-  onIncrease,
-  onDecrease,
-  onDetailChange,
+  placeholder,
+  items,
+  onAdd,
+  onUpdate,
+  onRemove,
 }: {
   title: string;
-  description: string;
-  badge: string;
-  count: number;
-  details: string[];
-  emptyText: string;
-  placeholderPrefix: string;
-  tone: "rose" | "indigo";
-  onIncrease: () => void;
-  onDecrease: () => void;
-  onDetailChange: (index: number, value: string) => void;
+  placeholder: string;
+  items: string[];
+  onAdd: () => void;
+  onUpdate: (index: number, value: string) => void;
+  onRemove: (index: number) => void;
 }) {
-  const toneClasses = {
-    rose: {
-      section:
-        "border-rose-400/20 bg-[linear-gradient(180deg,_rgba(43,8,23,0.52)_0%,_rgba(24,8,16,0.95)_100%)] shadow-[0_24px_60px_-42px_rgba(244,63,94,0.45)]",
-      badge: "border-rose-400/20 bg-rose-400/10 text-rose-100",
-      primary: "bg-rose-400 text-slate-950 hover:bg-rose-300",
-      secondary:
-        "border-rose-400/20 bg-slate-950/70 text-slate-200 hover:border-rose-300/45 hover:text-white",
-      empty: "border-rose-400/15 bg-[#220b16]/65 text-rose-100/75",
-      item: "border-rose-400/12 bg-[#170810]/90",
-      textarea: "border-rose-400/15 bg-slate-950/80 focus:border-rose-400/45",
-    },
-    indigo: {
-      section:
-        "border-indigo-400/20 bg-[linear-gradient(180deg,_rgba(12,18,48,0.58)_0%,_rgba(8,12,28,0.96)_100%)] shadow-[0_24px_60px_-42px_rgba(99,102,241,0.45)]",
-      badge: "border-indigo-400/20 bg-indigo-400/10 text-indigo-100",
-      primary: "bg-indigo-400 text-slate-950 hover:bg-indigo-300",
-      secondary:
-        "border-indigo-400/20 bg-slate-950/70 text-slate-200 hover:border-indigo-300/45 hover:text-white",
-      empty: "border-indigo-400/15 bg-[#0d1225]/70 text-indigo-100/75",
-      item: "border-indigo-400/12 bg-[#0b1020]/90",
-      textarea:
-        "border-indigo-400/15 bg-slate-950/80 focus:border-indigo-400/45",
-    },
-  } as const;
+  return (
+    <div className="grid content-start gap-1.5 sm:col-span-2">
+      <span className="text-[13px] text-mic-muted">
+        {title}
+        {items.length > 0 && ` · ${items.length}`}
+      </span>
+      {items.map((item, index) => (
+        <div key={index} className="flex items-center gap-1.5">
+          <input
+            id={`${title}-${index}`}
+            aria-label={`${title} ${index + 1}`}
+            value={item}
+            onChange={(event) => onUpdate(index, event.target.value)}
+            placeholder={placeholder}
+            className="h-[38px] min-w-0 flex-1 rounded-[10px] border border-mic-line-strong bg-mic-surface px-3 text-sm outline-none focus:border-mic-done"
+          />
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            aria-label={`Xoá dòng ${index + 1}`}
+            className="grid h-[38px] w-[38px] place-items-center rounded-[10px] text-mic-muted transition hover:bg-mic-sunken hover:text-mic-danger"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={onAdd}
+        className="justify-self-start text-[13px] font-semibold text-mic-done hover:underline"
+      >
+        + Thêm
+      </button>
+    </div>
+  );
+}
 
-  const palette = toneClasses[tone];
+// Always black on white: this is what ends up in the PDF
+function ReportSheet({ summary }: { summary: ShiftSummaryState }) {
+  const roomFeedback = summary.roomFeedbackDetails.map((item) => item.trim()).filter(Boolean);
+  const borrowedItems = summary.borrowedItemDetails.map((item) => item.trim()).filter(Boolean);
+  const rows: Array<[string, React.ReactNode]> = [
+    ["Máy lạnh tăng", summary.acIncrease],
+    ["Máy lạnh giảm", summary.acDecrease],
+    ["Tổng phản hồi máy lạnh", summary.acIncrease + summary.acDecrease],
+    ["Pin đã dùng", summary.usedBatteryCount],
+    ["Pin phát sinh", summary.extraBatteryCount],
+    ["Tổng pin", summary.usedBatteryCount + summary.extraBatteryCount],
+    ["Phản hồi phòng học", <SheetList key="room" items={roomFeedback} />],
+    ["Vật tư cho mượn", <SheetList key="borrowed" items={borrowedItems} />],
+  ];
 
   return (
-    <section className={`rounded-[1.5rem] border p-5 ${palette.section}`}>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-bold text-white">{title}</h3>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 self-start">
-          <span
-            className={`rounded-full border px-3 py-1 text-sm font-semibold ${palette.badge}`}
-          >
-            {badge}
-          </span>
-          <InfoHoverButton content={description} />
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={onIncrease}
-          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${palette.primary}`}
-        >
-          <Plus size={16} />
-          Tăng
-        </button>
-        <button
-          type="button"
-          onClick={onDecrease}
-          className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${palette.secondary}`}
-        >
-          <Minus size={16} />
-          Giảm
-        </button>
-        <span className="rounded-full border border-white/10 bg-slate-950/45 px-3 py-1 text-sm text-slate-300">
-          Tổng hiện tại: {count}
+    <div className="mic-print-sheet rounded-md border border-mic-line bg-white px-6 pb-7 pt-6 text-[#141a22] shadow-lg">
+      <div className="mb-3 grid gap-0.5 border-b-2 border-[#141a22] pb-3 text-center">
+        <b className="text-[15px] tracking-[0.06em]">BÁO CÁO KẾT CA</b>
+        <span className="text-xs text-[#525c69]">
+          {SHIFT_NAMES[summary.shift]} · {summary.summaryDate.trim() || "—"}
         </span>
       </div>
-
-      <div className="mt-5 space-y-3">
-        {details.length === 0 ? (
-          <div
-            className={`rounded-[1.25rem] border border-dashed px-4 py-4 text-sm leading-6 ${palette.empty}`}
-          >
-            {emptyText}
-          </div>
-        ) : (
-          details.map((detail, index) => (
-            <div
-              key={`${title}-${index}`}
-              className={`rounded-[1.25rem] border p-4 ${palette.item}`}
-            >
-              <label
-                htmlFor={`${title}-${index}`}
-                className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+      <table className="w-full border-collapse text-[13px]">
+        <tbody>
+          {rows.map(([label, value]) => (
+            <tr key={label} className="border-b border-[#e1e5eb] last:border-0">
+              <td className="py-1.5 pr-3 align-top">{label}</td>
+              <td
+                className={`py-1.5 text-right align-top ${
+                  typeof value === "number" ? "font-[family-name:var(--font-mic-mono)]" : ""
+                }`}
               >
-                {placeholderPrefix} #{index + 1}
-              </label>
-              <textarea
-                id={`${title}-${index}`}
-                value={detail}
-                onChange={(event) =>
-                  onDetailChange(index, event.currentTarget.value)
-                }
-                rows={2}
-                className={`mt-3 w-full rounded-2xl border px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-500 ${palette.textarea}`}
-                placeholder={`${placeholderPrefix} #${index + 1}`}
-              />
-            </div>
-          ))
-        )}
-      </div>
-    </section>
+                {value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SheetList({ items }: { items: string[] }) {
+  if (items.length === 0) {
+    return <>Không có</>;
+  }
+
+  return (
+    <ul className="space-y-0.5">
+      {items.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+    </ul>
   );
 }

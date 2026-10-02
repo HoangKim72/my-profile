@@ -82,7 +82,7 @@ src/
                                 #   config (cấu hình + schema)
                                 #   constants (giá trị mặc định)
                                 #   session (localStorage)
-                                #   export (text/bảng)
+                                #   export (bảng trưa cho ảnh)
   lib/tools/mic-filter-settings.ts # Đọc cấu hình tool mic từ DB (server-only)
   types/index.ts                # Kiểu dùng chung
 prisma/
@@ -308,18 +308,21 @@ Việc xử lý file chạy **ở client** và không cần đăng nhập. Serve
 
    Rule nhắc áp dụng cho **mọi phòng**, không chỉ phòng có mic không dây. Câu gợi ý và nhãn giờ được sinh tự động bởi `describeAlarmRule`. Gợi ý chỉ hiện trong khung "hiện gợi ý" của rule. Tool dùng `setTimeout` và Browser Notification API, nên **tab phải luôn mở** thì mới nhận được thông báo.
 
-**Checklist:** mỗi số phòng trên 2 bảng là một nút bấm. Bấm vào thì phòng được đánh dấu đã soạn, đã thu, đã phát hoặc đã thay pin, bấm lại thì bỏ đánh dấu. Mỗi bảng có chip tiến độ như "Đã thu 1/3". Key của checklist có dạng `kind:floor:room`. Khi upload file mới hoặc bấm "Làm lại", checklist được xoá.
+**Giao diện** (`MicFilterTool`, từ `2026-10-03`): nền sáng, chữ gần đen, font Be Vietnam Pro + JetBrains Mono (nạp bằng `next/font` trong `page.tsx`). Màu nằm trong các biến `--mic-*` ở `app/globals.css`, có bản sáng và tối, dùng qua class Tailwind `bg-mic-*`, `text-mic-*`. Mỗi việc một màu: xanh dương = soạn mic sáng, cam = thu/phát/thay pin, xanh lá = kết ca. Trang có 2 tab:
 
-**Xuất bảng** (`export.ts`, `components/tools/table-image.ts`): mỗi bảng có 2 nút.
+- **Lọc mic:** chưa có file thì chỉ hiện ô kéo-thả. Có file rồi thì hiện 2 bảng chỉ xem, ô phòng chỉ ghi số phòng vì đã có cột Tầng:
+  - **Soạn mic ca sáng:** không có nút copy.
+  - **Thu · Phát · Thay pin:** có một nút **Copy ảnh**. Phía trên bảng có một dòng riêng cho mỗi báo thức máy lạnh: nút "Đặt báo thức" khi đang trong khung gợi ý, "Đặt được từ HH:MM" khi chưa tới khung, và dòng này ẩn khi đã qua khung.
+  - Tên file và nút **Đổi file** nằm ở đầu trang.
+- **Kết ca:** form bên trái gồm ca, ngày, 4 bộ đếm, danh sách phản hồi phòng học và vật tư cho mượn (thêm hoặc xoá từng dòng). Bên phải là tờ **Báo cáo kết ca** luôn nền trắng chữ đen. Nút **Xuất PDF** gọi `window.print()`. Khi in, CSS `@media print` trong `globals.css` chỉ giữ lại `.mic-print-sheet` và đặt khổ A4. Tên file PDF gợi ý là `ket-ca-sang-dd-mm-yyyy`.
 
-- **Copy chữ:** copy văn bản gọn để dán Zalo, bỏ các nhóm rỗng.
-- **Copy ảnh:** vẽ bảng ra PNG bằng canvas, độ phân giải 2x, không dùng thư viện ngoài. Ảnh được copy vào clipboard. Nếu trình duyệt không cho copy ảnh thì ảnh được tải về dưới dạng file PNG.
+Đã bỏ: checklist tick từng phòng, Copy chữ, các ô số liệu tổng và khối thông tin file.
 
-**Kết ca** (`ShiftSummaryPanel`): form đếm các mục tăng/giảm máy lạnh, phản ánh phòng, đồ mượn, pin đã dùng và pin dư. Tool sinh ra đoạn văn bản báo cáo để copy. Nút **"Xoá dữ liệu kết ca"** (có hỏi xác nhận) đưa các bộ đếm về 0 và giữ nguyên ca đang chọn.
+**Xuất ảnh** (`export.ts` → `buildMiddayExportTable`, `components/tools/table-image.ts`): vẽ bảng trưa ra PNG bằng canvas, độ phân giải 2x, không dùng thư viện ngoài. Ảnh được copy vào clipboard. Nếu trình duyệt không cho copy ảnh thì ảnh được tải về dưới dạng file PNG.
 
-**Giữ phiên làm việc** (`session.ts`): localStorage key `mic-filter:session:v1` lưu báo cáo đã lọc, checklist và form kết ca, kèm `dayKey`.
+**Giữ phiên làm việc** (`session.ts`): localStorage key `mic-filter:session:v1` lưu báo cáo đã lọc và form kết ca, kèm `dayKey`. Trường `checked` của phiên cũ bị bỏ qua khi đọc.
 
-- Trạng thái được khôi phục sau khi mount; có toast "Đã khôi phục phiên làm việc hôm nay".
+- Trạng thái được khôi phục sau khi mount.
 - Dữ liệu của ngày khác bị bỏ.
 - Nếu tab mở qua đêm, tool tự reset khi sang ngày mới.
 - Dữ liệu hỏng thì được vá hoặc bỏ qua.

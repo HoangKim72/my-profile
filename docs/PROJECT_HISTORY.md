@@ -531,7 +531,7 @@ Việc còn treo (bổ sung):
 
 - kiểm tra lại project Supabase / `.env.local`
 - migration `tool_settings` nằm chung bước deploy ở TECHNICAL §8.2.1
-- giao diện tool mic có đề xuất đổi sang design system mới (memory ghi nhận ngày `2026-10-03`), **chưa được duyệt**; nhóm 3 vẫn giữ giao diện tối hiện tại
+- giao diện tool mic: đã làm lại, xem mục "Làm lại giao diện tool lọc mic" bên dưới
 
 #### Chạy migration lên Supabase (cùng ngày `2026-10-03`)
 
@@ -558,6 +558,33 @@ Việc còn treo:
 - sửa môn học, kỳ học, tag cho 4 tài liệu (đang là "Shared resources" và tag placeholder)
 - merge nhánh `feat/hardening-and-resources` vào `main` để deploy
 - quyết định có tắt `/register` hay không
+
+#### Làm lại giao diện tool lọc mic (cùng ngày `2026-10-03`)
+
+Chủ dự án duyệt layout qua nhiều vòng mockup và chốt các điểm sau:
+
+- bỏ bộ màu ngọc/vàng (khó nhìn), dùng nền sáng, chữ gần đen, mỗi việc một màu
+- dùng chủ yếu trên **máy tính**; **không cần tick từng phòng**
+- 2 tab: **Lọc mic** (2 bảng) và **Kết ca** (xuất PDF)
+- bảng soạn mic sáng không có nút copy; bảng trưa chỉ **Copy ảnh**
+- báo thức máy lạnh là một dòng riêng đặt trên bảng trưa
+- ô phòng chỉ ghi số phòng; dữ liệu `roomDisplay` vốn đã như vậy nên không phải sửa processor
+
+Đã làm:
+
+- viết lại `MicFilterTool` và `ShiftSummaryPanel`; `MicFilterWorkspace` chỉ còn là khung trang
+- thêm biến màu `--mic-*` (sáng/tối) và CSS in cho Xuất PDF vào `globals.css`; font nạp bằng `next/font` trong `page.tsx`
+- Kết ca: thêm/xoá từng dòng phản hồi và vật tư; Xuất PDF bằng `window.print()` thay cho copy văn bản
+- bỏ checklist khỏi `session.ts`, bỏ `buildMorningText`, `buildMiddayText`, `buildMorningExportTable` khỏi `export.ts`, cập nhật test
+- kéo-thả file vào ô tải lên
+
+Kiểm tra:
+
+- `tsc`, `eslint`, `npm test` (59 test), `next build`: đều pass
+- chạy dev với phiên mẫu trong localStorage: 2 tab, cả 2 theme, dòng báo thức, Copy ảnh (browser pane chặn clipboard nên tool chuyển sang tải PNG, đúng như thiết kế)
+- chưa thử hộp thoại in/PDF thật và upload file Excel thật trên giao diện mới
+
+Merge nhánh `feat/hardening-and-resources` vào `main` để deploy.
 
 ## 9. Sơ đồ hiểu nhanh dự án
 

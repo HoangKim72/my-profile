@@ -79,11 +79,52 @@
   --font-mono-local:
     "Cascadia Code", "Aptos Mono", "JetBrains Mono", "SFMono-Regular",
     Consolas, monospace;
+
+  /* Mic tool palette: plain surfaces, near-black text, one colour per job
+     (morn = soạn mic sáng, noon = thu/phát/thay pin, done = kết ca) */
+  --mic-canvas: #f3f5f8;
+  --mic-surface: #ffffff;
+  --mic-sunken: #f5f7fa;
+  --mic-line: #e1e5eb;
+  --mic-line-strong: #c3cad4;
+  --mic-ink: #141a22;
+  --mic-muted: #525c69;
+  --mic-primary: #2457d6;
+  --mic-on-primary: #ffffff;
+  --mic-morn: #2457d6;
+  --mic-morn-soft: #e7eefc;
+  --mic-noon: #b45f06;
+  --mic-noon-soft: #fdf0dc;
+  --mic-done: #17803d;
+  --mic-done-soft: #e3f5e9;
+  --mic-on-done: #ffffff;
+  --mic-thu-soft: #eef1f4;
+  --mic-danger: #c0391b;
+  --mic-danger-soft: #fde8e2;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-mic-canvas: var(--mic-canvas);
+  --color-mic-surface: var(--mic-surface);
+  --color-mic-sunken: var(--mic-sunken);
+  --color-mic-line: var(--mic-line);
+  --color-mic-line-strong: var(--mic-line-strong);
+  --color-mic-ink: var(--mic-ink);
+  --color-mic-muted: var(--mic-muted);
+  --color-mic-primary: var(--mic-primary);
+  --color-mic-on-primary: var(--mic-on-primary);
+  --color-mic-morn: var(--mic-morn);
+  --color-mic-morn-soft: var(--mic-morn-soft);
+  --color-mic-noon: var(--mic-noon);
+  --color-mic-noon-soft: var(--mic-noon-soft);
+  --color-mic-done: var(--mic-done);
+  --color-mic-done-soft: var(--mic-done-soft);
+  --color-mic-on-done: var(--mic-on-done);
+  --color-mic-thu-soft: var(--mic-thu-soft);
+  --color-mic-danger: var(--mic-danger);
+  --color-mic-danger-soft: var(--mic-danger-soft);
   --font-sans: var(--font-sans-local);
   --font-mono: var(--font-mono-local);
 }
@@ -92,6 +133,51 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    --mic-canvas: #0e1116;
+    --mic-surface: #171b22;
+    --mic-sunken: #1b2028;
+    --mic-line: #2a313c;
+    --mic-line-strong: #46505e;
+    --mic-ink: #eef1f5;
+    --mic-muted: #a8b0bc;
+    --mic-primary: #7aa5ff;
+    --mic-on-primary: #0b1530;
+    --mic-morn: #7aa5ff;
+    --mic-morn-soft: #1a2742;
+    --mic-noon: #f5a524;
+    --mic-noon-soft: #33260f;
+    --mic-done: #4ade80;
+    --mic-done-soft: #12301d;
+    --mic-on-done: #062012;
+    --mic-thu-soft: #232934;
+    --mic-danger: #ff8a70;
+    --mic-danger-soft: #3d1a12;
+  }
+}
+
+/* "Xuất PDF" in Kết ca prints only the report sheet */
+@media print {
+  body:has(.mic-print-sheet) * {
+    visibility: hidden;
+  }
+
+  body:has(.mic-print-sheet) .mic-print-sheet,
+  body:has(.mic-print-sheet) .mic-print-sheet * {
+    visibility: visible;
+  }
+
+  body:has(.mic-print-sheet) .mic-print-sheet {
+    position: absolute;
+    inset: 0 0 auto 0;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  @page {
+    size: A4;
+    margin: 16mm;
   }
 }
 
