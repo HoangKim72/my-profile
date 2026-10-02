@@ -7,6 +7,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Download } from "lucide-react";
 import { formatFileSize } from "@/lib/projects/archive";
+import { parseArchiveManifest } from "@/lib/projects/archive-manifest";
+import { parseResourceTags } from "@/lib/projects/resource";
+import { ArchiveContents } from "@/components/projects/ArchiveContents";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +46,8 @@ export default async function ProjectDetail({
   }
 
   const latestArchive = project.files?.[0] ?? null;
-  const techTags = project.techStack.split(",").map((t: string) => t.trim());
-  const subjectLabel =
-    project.subjectName !== project.title
-      ? project.subjectName
-      : project.semester || "Tài nguyên chia sẻ";
+  const manifest = parseArchiveManifest(latestArchive?.entries);
+  const techTags = parseResourceTags(project.techStack);
 
   return (
     <div className="min-h-screen py-12">
@@ -56,7 +56,7 @@ export default async function ProjectDetail({
           href="/projects"
           className="text-blue-600 hover:text-blue-700 font-medium mb-8 inline-flex items-center gap-2"
         >
-          ← Quay lại Projects
+          ← Quay lại kho tài liệu
         </Link>
 
         <h1 className="text-5xl font-bold mb-4 text-gradient">
@@ -94,23 +94,23 @@ export default async function ProjectDetail({
         <div className="mb-8 grid gap-4 border-b border-gray-200 pb-8 dark:border-gray-800 md:grid-cols-3">
           <div className="rounded-2xl bg-gray-50 px-4 py-4 dark:bg-gray-900/60">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              Subject
+              Môn học
             </span>
-            <p className="mt-1 font-semibold">{subjectLabel}</p>
+            <p className="mt-1 font-semibold">{project.subjectName}</p>
           </div>
           <div className="rounded-2xl bg-gray-50 px-4 py-4 dark:bg-gray-900/60">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              Archive
+              Kỳ học
+            </span>
+            <p className="mt-1 font-semibold">{project.semester}</p>
+          </div>
+          <div className="rounded-2xl bg-gray-50 px-4 py-4 dark:bg-gray-900/60">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Lượt tải
             </span>
             <p className="mt-1 font-semibold">
-              {latestArchive ? "Sẵn sàng tải xuống" : "Đang chuẩn bị"}
+              {project.downloadCount.toLocaleString("vi-VN")}
             </p>
-          </div>
-          <div className="rounded-2xl bg-gray-50 px-4 py-4 dark:bg-gray-900/60">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              Status
-            </span>
-            <p className="mt-1 font-semibold">{project.status}</p>
           </div>
         </div>
 
@@ -125,13 +125,17 @@ export default async function ProjectDetail({
           </div>
         )}
 
-        <div className="prose dark:prose-invert max-w-none mb-12">
-          <p className="whitespace-pre-wrap">{project.content}</p>
-        </div>
+        {project.content && (
+          <div className="prose dark:prose-invert max-w-none mb-12">
+            <p className="whitespace-pre-wrap">{project.content}</p>
+          </div>
+        )}
+
+        {manifest && <ArchiveContents manifest={manifest} />}
 
         {techTags.length > 0 && (
           <div className="mb-8">
-            <h3 className="text-xl font-bold mb-4">Tech Stack</h3>
+            <h3 className="text-xl font-bold mb-4">Tag</h3>
             <div className="flex flex-wrap gap-2">
               {techTags.map((tag: string) => (
                 <span

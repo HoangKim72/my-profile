@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Download, FolderOpen } from "lucide-react";
+import { CalendarDays, Download, FolderOpen } from "lucide-react";
 import { formatFileSize } from "@/lib/projects/archive";
-import { Visibility } from "@/types";
+import { parseResourceTags } from "@/lib/projects/resource";
 
 interface ProjectCardProject {
   id: string;
@@ -14,7 +14,7 @@ interface ProjectCardProject {
   subjectName: string;
   semester: string;
   techStack: string;
-  visibility: Visibility;
+  downloadCount: number;
   thumbnailUrl?: string | null;
   files?: Array<{
     id: string;
@@ -29,17 +29,8 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
-  const visibilityLabel: Record<Visibility, string> = {
-    PUBLIC: "Public",
-    PRIVATE: "Private",
-    SHARED: "Shared",
-  };
-
   const latestArchive = project.files?.[0];
-  const metaLine =
-    project.subjectName !== project.title
-      ? project.subjectName
-      : project.semester || null;
+  const tags = parseResourceTags(project.techStack);
 
   return (
     <div className="card overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
@@ -57,26 +48,38 @@ export function ProjectCard({ project }: ProjectCardProps) {
       <div className="p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                {project.title}
-              </h3>
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              {project.title}
+            </h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium">
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
                 <FolderOpen size={12} />
-                {visibilityLabel[project.visibility]}
+                {project.subjectName}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                <CalendarDays size={12} />
+                {project.semester}
               </span>
             </div>
-            {metaLine ? (
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                {metaLine}
-              </p>
-            ) : null}
           </div>
         </div>
 
         <p className="mb-4 line-clamp-2 text-gray-700 dark:text-gray-300">
           {project.shortDescription}
         </p>
+
+        {tags.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {tags.slice(0, 6).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         {latestArchive && (
           <div className="mb-5 rounded-xl bg-gray-50 p-4 dark:bg-gray-900">
@@ -87,7 +90,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
               {latestArchive.fileName}
             </p>
             <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-              {formatFileSize(latestArchive.sizeBytes)}
+              {formatFileSize(latestArchive.sizeBytes)} •{" "}
+              {project.downloadCount.toLocaleString("vi-VN")} lượt tải
             </p>
           </div>
         )}

@@ -92,6 +92,7 @@ model Project {
   demoUrl          String?
   thumbnailUrl     String?
   coverImageUrl    String?
+  downloadCount    Int     @default(0)
 
   status     ProjectStatus @default(DRAFT) // DRAFT, PUBLISHED, ARCHIVED
   visibility Visibility    @default(PRIVATE) // PUBLIC, PRIVATE, SHARED
@@ -133,6 +134,7 @@ model ProjectFile {
   fileType   String // e.g., "pdf", "zip", "doc"
   mimeType   String
   sizeBytes  Int
+  entries    Json? // ArchiveManifest: danh sách file bên trong ZIP
   uploadedBy String?
   createdAt  DateTime @default(now())
 

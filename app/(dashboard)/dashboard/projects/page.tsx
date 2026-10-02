@@ -41,9 +41,10 @@ export default async function ProjectsPage() {
   const publicProjects = projects.filter(
     (project) => project.visibility === "PUBLIC",
   ).length;
-  const ownedProjects = projects.filter(
-    (project) => project.authorId === user.id,
-  ).length;
+  const totalDownloads = projects.reduce(
+    (total, project) => total + project.downloadCount,
+    0,
+  );
 
   const summaryCards = [
     {
@@ -62,9 +63,9 @@ export default async function ProjectsPage() {
       detail: "Đang hiển thị trên trang công khai.",
     },
     {
-      label: "Bạn là owner",
-      value: ownedProjects,
-      detail: "Những folder do bạn tạo trực tiếp.",
+      label: "Tổng lượt tải",
+      value: totalDownloads.toLocaleString("vi-VN"),
+      detail: "Không tính lượt tải của tác giả và admin.",
     },
   ];
 
@@ -151,10 +152,10 @@ export default async function ProjectsPage() {
                     <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-600 dark:text-slate-300 md:grid-cols-3">
                       <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-500">
-                          Slug
+                          Môn học • Kỳ học
                         </p>
-                        <p className="mt-1 break-all text-sm font-medium text-slate-900 dark:text-white">
-                          /projects/{project.slug}
+                        <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
+                          {project.subjectName} • {project.semester}
                         </p>
                       </div>
                       <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
@@ -177,6 +178,9 @@ export default async function ProjectsPage() {
                           {latestFile
                             ? `${latestFile.fileName} • ${formatFileSize(latestFile.sizeBytes)}`
                             : "Chưa có file ZIP"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          {project.downloadCount.toLocaleString("vi-VN")} lượt tải
                         </p>
                       </div>
                     </div>

@@ -12,7 +12,8 @@
     "prisma:migrate": "dotenv -e .env.local -- prisma migrate dev",
     "prisma:deploy": "dotenv -e .env.local -- prisma migrate deploy",
     "prisma:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
-    "test": "node --import tsx --test \"src/**/__tests__/*.test.ts\""
+    "test": "node --import tsx --test \"src/**/__tests__/*.test.ts\"",
+    "archives:backfill": "dotenv -e .env.local -- tsx scripts/backfill-archive-manifests.ts"
   },
   "prisma": {
     "seed": "dotenv -e .env.local -- tsx prisma/seed.ts"

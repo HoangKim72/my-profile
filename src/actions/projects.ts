@@ -20,6 +20,7 @@ import {
 } from "@/lib/validators/project";
 import { slugifyProjectTitle } from "@/lib/projects/archive";
 import { removeStoredProjectArchive } from "@/lib/storage/project-archives";
+import type { ResourceFilters, ResourceSort } from "@/lib/projects/resource";
 import { ProjectPermissionType } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -46,6 +47,7 @@ function normalizeSharedUsers(
 async function ensureUniqueProjectSlug(
   tx: Prisma.TransactionClient,
   rawSlug: string,
+  excludeProjectId?: string,
 ) {
   const baseSlug = slugifyProjectTitle(rawSlug);
   let slug = baseSlug;
@@ -57,7 +59,7 @@ async function ensureUniqueProjectSlug(
       select: { id: true },
     });
 
-    if (!existingProject) {
+    if (!existingProject || existingProject.id === excludeProjectId) {
       return slug;
     }
 
@@ -74,6 +76,7 @@ async function getProjectAccess(projectId: string, userId: string) {
       slug: true,
       authorId: true,
       visibility: true,
+      publishedAt: true,
       permissions: {
         where: { userId },
         select: { permissionType: true },
@@ -83,59 +86,131 @@ async function getProjectAccess(projectId: string, userId: string) {
   });
 }
 
-// Get all public projects
-export async function getPublicProjects(limit = 10, offset = 0) {
+const PUBLIC_RESOURCE_WHERE: Prisma.ProjectWhereInput = {
+  visibility: "PUBLIC",
+  status: "PUBLISHED",
+  files: {
+    some: {},
+  },
+};
+
+const RESOURCE_ORDER_BY: Record<
+  ResourceSort,
+  Prisma.ProjectOrderByWithRelationInput[]
+> = {
+  newest: [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+  downloads: [{ downloadCount: "desc" }, { createdAt: "desc" }],
+  title: [{ title: "asc" }],
+};
+
+function buildPublicResourceWhere(
+  filters: Partial<ResourceFilters>,
+): Prisma.ProjectWhereInput {
+  const and: Prisma.ProjectWhereInput[] = [PUBLIC_RESOURCE_WHERE];
+
+  if (filters.subject) {
+    and.push({ subjectName: filters.subject });
+  }
+
+  if (filters.semester) {
+    and.push({ semester: filters.semester });
+  }
+
+  if (filters.q) {
+    const contains = { contains: filters.q, mode: "insensitive" as const };
+
+    and.push({
+      OR: [
+        { title: contains },
+        { shortDescription: contains },
+        { subjectName: contains },
+        { techStack: contains },
+      ],
+    });
+  }
+
+  return { AND: and };
+}
+
+// Get public resources, optionally filtered by subject, semester and keyword
+export async function getPublicProjects(
+  options: Partial<ResourceFilters> & { limit?: number; offset?: number } = {},
+) {
   try {
-    const projects = await prisma.project.findMany({
-      where: {
-        visibility: "PUBLIC",
-        status: "PUBLISHED",
-        files: {
-          some: {},
-        },
-      },
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        shortDescription: true,
-        subjectName: true,
-        semester: true,
-        techStack: true,
-        visibility: true,
-        thumbnailUrl: true,
-        createdAt: true,
-        files: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: {
-            id: true,
-            fileName: true,
-            sizeBytes: true,
-            createdAt: true,
+    const { limit = 100, offset = 0, sort = "newest" } = options;
+    const where = buildPublicResourceWhere(options);
+
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({
+        where,
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          shortDescription: true,
+          subjectName: true,
+          semester: true,
+          techStack: true,
+          visibility: true,
+          thumbnailUrl: true,
+          downloadCount: true,
+          createdAt: true,
+          files: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: {
+              id: true,
+              fileName: true,
+              sizeBytes: true,
+              createdAt: true,
+            },
           },
         },
-        author: { select: { id: true, email: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-    });
-
-    const total = await prisma.project.count({
-      where: {
-        visibility: "PUBLIC",
-        status: "PUBLISHED",
-        files: {
-          some: {},
-        },
-      },
-    });
+        orderBy: RESOURCE_ORDER_BY[sort],
+        take: limit,
+        skip: offset,
+      }),
+      prisma.project.count({ where }),
+    ]);
 
     return { success: true, projects, total };
   } catch (error) {
     console.error("Error fetching public projects:", error);
-    return { success: false, error: "Đã xảy ra lỗi" };
+    return { success: false, error: "Đã xảy ra lỗi", projects: [], total: 0 };
+  }
+}
+
+// Distinct subjects and semesters among public resources, for filter menus
+export async function getPublicResourceFacets() {
+  try {
+    const [subjects, semesters] = await Promise.all([
+      prisma.project.groupBy({
+        by: ["subjectName"],
+        where: PUBLIC_RESOURCE_WHERE,
+        _count: { _all: true },
+        orderBy: { subjectName: "asc" },
+      }),
+      prisma.project.groupBy({
+        by: ["semester"],
+        where: PUBLIC_RESOURCE_WHERE,
+        _count: { _all: true },
+        orderBy: { semester: "desc" },
+      }),
+    ]);
+
+    return {
+      subjects: subjects.map((item) => ({
+        value: item.subjectName,
+        count: item._count._all,
+      })),
+      semesters: semesters.map((item) => ({
+        value: item.semester,
+        count: item._count._all,
+      })),
+    };
+  } catch (error) {
+    console.error("Error fetching resource facets:", error);
+    return { subjects: [], semesters: [] };
   }
 }
 
@@ -204,6 +279,14 @@ export async function getProjectBySlug(slug: string) {
       return { success: false, error: "Project not found" };
     }
 
+    const isAuthorOrAdmin =
+      !!user && (project.authorId === user.id || user.role === "admin");
+
+    // Drafts and archived resources stay hidden from the public
+    if (project.status !== "PUBLISHED" && !isAuthorOrAdmin) {
+      return { success: false, error: "Project not found" };
+    }
+
     // Check visibility permission
     if (project.visibility === "PRIVATE") {
       if (!user || (project.authorId !== user.id && user.role !== "admin")) {
@@ -264,6 +347,7 @@ export async function createProject(data: unknown) {
           demoUrl: validated.demoUrl,
           visibility: validated.visibility,
           status: validated.status,
+          publishedAt: validated.status === "PUBLISHED" ? new Date() : null,
           authorId: user.id,
         },
         include: {
@@ -326,9 +410,13 @@ export async function updateProject(id: string, data: unknown) {
     const sharedUsers = normalizeSharedUsers(validated.sharedUsers, project.authorId);
 
     const updated = await prisma.$transaction(async (tx) => {
+      const slug =
+        validated.slug && validated.slug !== project.slug
+          ? await ensureUniqueProjectSlug(tx, validated.slug, id)
+          : undefined;
       const updateData = {
         title: validated.title,
-        slug: validated.slug,
+        slug,
         shortDescription: validated.shortDescription,
         content: validated.content,
         subjectName: validated.subjectName,
@@ -337,6 +425,10 @@ export async function updateProject(id: string, data: unknown) {
         githubUrl: validated.githubUrl,
         demoUrl: validated.demoUrl,
         status: validated.status,
+        publishedAt:
+          validated.status === "PUBLISHED" && !project.publishedAt
+            ? new Date()
+            : undefined,
         visibility: canChangeVisibility ? validated.visibility : undefined,
       };
 
@@ -377,6 +469,7 @@ export async function updateProject(id: string, data: unknown) {
     revalidatePath("/dashboard/projects");
     revalidatePath(`/dashboard/projects/${id}/edit`);
     revalidatePath(`/projects/${updated.slug}`);
+    revalidatePath("/projects");
 
     return { success: true, project: updated };
   } catch (error) {
@@ -452,6 +545,7 @@ export async function publishProject(id: string) {
       where: { id },
       data: {
         status: "PUBLISHED",
+        publishedAt: project.publishedAt ?? new Date(),
       },
     });
 

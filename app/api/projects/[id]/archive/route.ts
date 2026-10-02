@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/check-auth";
 import { canEditProject } from "@/lib/auth/permissions";
+import { Prisma } from "@prisma/client";
+import { buildArchiveManifest } from "@/lib/projects/archive-manifest";
 import {
   sanitizeArchiveFileName,
   validateProjectArchiveCandidate,
@@ -71,6 +73,9 @@ export async function POST(
   try {
     validateProjectArchiveCandidate(archive);
 
+    // Also proves the upload is a readable ZIP before it reaches storage
+    const manifest = await buildArchiveManifest(await archive.arrayBuffer());
+
     const folderName =
       typeof folderNameField === "string" && folderNameField.trim().length > 0
         ? folderNameField.trim()
@@ -97,6 +102,7 @@ export async function POST(
             fileType: "zip",
             mimeType: archive.type || "application/zip",
             sizeBytes: archive.size,
+            entries: manifest as unknown as Prisma.InputJsonValue,
             uploadedBy: user.id,
           },
         });

@@ -19,6 +19,7 @@ export async function GET(
       title: true,
       slug: true,
       visibility: true,
+      status: true,
       authorId: true,
       files: {
         orderBy: { createdAt: "desc" },
@@ -51,6 +52,13 @@ export async function GET(
   const canReadPrivateProject =
     user && (project.authorId === user.id || user.role === "admin");
 
+  if (project.status !== "PUBLISHED" && !canReadPrivateProject) {
+    return NextResponse.json(
+      { error: "Không tìm thấy thư mục tải xuống." },
+      { status: 404 },
+    );
+  }
+
   if (project.visibility === "PRIVATE" && !canReadPrivateProject) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -67,6 +75,21 @@ export async function GET(
 
   try {
     const archiveBlob = await downloadStoredProjectArchive(archive.filePath);
+
+    // Count real visitors only; the author or an admin checking a file should
+    // not inflate the number. A counter failure must never block the download.
+    if (!canReadPrivateProject) {
+      await prisma.project
+        .update({
+          where: { id: project.id },
+          data: { downloadCount: { increment: 1 } },
+          select: { id: true },
+        })
+        .catch((error) => {
+          console.error("Error incrementing download count:", error);
+        });
+    }
+
     const downloadFileName = archive.fileName || `${project.slug}.zip`;
 
     return new NextResponse(archiveBlob, {

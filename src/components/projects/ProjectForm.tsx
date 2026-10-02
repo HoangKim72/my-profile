@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
   type FormEvent,
   type InputHTMLAttributes,
+  type ReactNode,
 } from "react";
 import JSZip from "jszip";
 import Link from "next/link";
@@ -22,12 +23,38 @@ import {
   slugifyProjectTitle,
   validateProjectArchiveCandidate,
 } from "@/lib/projects/archive";
+import { parseResourceTags } from "@/lib/projects/resource";
 import type { Project } from "@/types";
 
 type ProjectFormProject = Pick<
   Project,
-  "id" | "title" | "slug" | "githubUrl" | "demoUrl"
+  | "id"
+  | "title"
+  | "slug"
+  | "githubUrl"
+  | "demoUrl"
+  | "shortDescription"
+  | "content"
+  | "subjectName"
+  | "semester"
+  | "techStack"
+  | "status"
 >;
+
+type ResourceStatus = "PUBLISHED" | "DRAFT";
+
+interface ResourceFields {
+  title: string;
+  subjectName: string;
+  semester: string;
+  shortDescription: string;
+  content: string;
+  tags: string;
+  status: ResourceStatus;
+}
+
+const INPUT_CLASS =
+  "w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800";
 
 interface ProjectArchiveSummary {
   fileName: string;
@@ -52,7 +79,9 @@ export function ProjectForm({
 }: ProjectFormProps) {
   const router = useRouter();
   const folderInputRef = useRef<HTMLInputElement>(null);
-  const [title, setTitle] = useState(project?.title ?? "");
+  const [fields, setFields] = useState<ResourceFields>(() =>
+    getInitialFields(project),
+  );
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedFolderName, setSelectedFolderName] = useState<string | null>(
     null,
@@ -67,6 +96,14 @@ export function ProjectForm({
   );
   const isBusy = isSavingProject || isPreparingArchive;
 
+  const updateField = <Key extends keyof ResourceFields>(
+    key: Key,
+    value: ResourceFields[Key],
+  ) => {
+    setFields((current) => ({ ...current, [key]: value }));
+    setError(null);
+  };
+
   const handleFolderChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
 
@@ -78,10 +115,11 @@ export function ProjectForm({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const trimmedTitle = title.trim();
+    const trimmedTitle = fields.title.trim();
+    const fieldError = validateFields(fields);
 
-    if (!trimmedTitle) {
-      setError("Vui lòng nhập tên project trước khi lưu.");
+    if (fieldError) {
+      setError(fieldError);
       return;
     }
 
@@ -94,7 +132,7 @@ export function ProjectForm({
     setIsSavingProject(true);
 
     try {
-      const payload = buildProjectPayload(trimmedTitle, project);
+      const payload = buildProjectPayload(fields, project);
       const result = project
         ? await updateProject(project.id, payload)
         : await createProject(payload);
@@ -154,30 +192,148 @@ export function ProjectForm({
         </div>
       )}
 
-      <section className="space-y-3">
+      <section className="space-y-5">
         <div>
-          <h2 className="text-2xl font-bold">Project Setup</h2>
+          <h2 className="text-2xl font-bold">Thông tin tài liệu</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Đặt tên project và chọn nguyên folder, hệ thống sẽ tự đóng gói
-            thành file ZIP để người dùng tải về.
+            Môn học, kỳ học và tag dùng để lọc trên trang công khai. Tag cũng
+            được trang Skills dùng làm bằng chứng kỹ năng.
           </p>
         </div>
 
-        <div>
-          <label htmlFor="title" className="mb-2 block text-sm font-medium">
-            Project Name *
-          </label>
+        <Field label="Tên tài liệu *" htmlFor="title">
           <input
             id="title"
-            name="title"
             type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Ví dụ: Tài liệu môn Web nâng cao"
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800"
+            value={fields.title}
+            onChange={(event) => updateField("title", event.target.value)}
+            placeholder="Ví dụ: Bài tập lớn Lập trình Web"
+            className={INPUT_CLASS}
+            maxLength={200}
             required
           />
+        </Field>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <Field label="Môn học *" htmlFor="subjectName">
+            <input
+              id="subjectName"
+              type="text"
+              value={fields.subjectName}
+              onChange={(event) =>
+                updateField("subjectName", event.target.value)
+              }
+              placeholder="Ví dụ: Lập trình Web"
+              className={INPUT_CLASS}
+              maxLength={120}
+              required
+            />
+          </Field>
+          <Field label="Kỳ học *" htmlFor="semester">
+            <input
+              id="semester"
+              type="text"
+              value={fields.semester}
+              onChange={(event) => updateField("semester", event.target.value)}
+              placeholder="Ví dụ: HK1 2025-2026"
+              className={INPUT_CLASS}
+              maxLength={60}
+              required
+            />
+          </Field>
         </div>
+
+        <Field
+          label="Mô tả ngắn *"
+          htmlFor="shortDescription"
+          hint={`${fields.shortDescription.trim().length}/500 ký tự, tối thiểu 10. Hiện trên thẻ ở danh sách.`}
+        >
+          <textarea
+            id="shortDescription"
+            value={fields.shortDescription}
+            onChange={(event) =>
+              updateField("shortDescription", event.target.value)
+            }
+            rows={2}
+            maxLength={500}
+            placeholder="Tài liệu gồm slide, đề cương và bài tập có lời giải."
+            className={INPUT_CLASS}
+            required
+          />
+        </Field>
+
+        <Field
+          label="Ghi chú chi tiết"
+          htmlFor="content"
+          hint="Không bắt buộc. Hiện ở trang chi tiết."
+        >
+          <textarea
+            id="content"
+            value={fields.content}
+            onChange={(event) => updateField("content", event.target.value)}
+            rows={5}
+            placeholder="Nội dung từng thư mục, cách dùng, nguồn tham khảo..."
+            className={INPUT_CLASS}
+          />
+        </Field>
+
+        <Field
+          label="Tag"
+          htmlFor="tags"
+          hint="Phân tách bằng dấu phẩy, ví dụ: Java, SQL, Đề thi."
+        >
+          <input
+            id="tags"
+            type="text"
+            value={fields.tags}
+            onChange={(event) => updateField("tags", event.target.value)}
+            placeholder="Java, Spring Boot, Đề thi"
+            className={INPUT_CLASS}
+          />
+          {parseResourceTags(fields.tags).length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {parseResourceTags(fields.tags).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </Field>
+
+        <fieldset>
+          <legend className="mb-2 block text-sm font-medium">Trạng thái</legend>
+          <div className="flex flex-wrap gap-3">
+            {STATUS_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
+                  fields.status === option.value
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40"
+                    : "border-gray-300 dark:border-gray-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="status"
+                  value={option.value}
+                  checked={fields.status === option.value}
+                  onChange={() => updateField("status", option.value)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-medium">{option.label}</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {option.hint}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </section>
 
       <section className="space-y-4 border-t border-gray-200 pt-8 dark:border-gray-800">
@@ -265,10 +421,10 @@ export function ProjectForm({
           {isPreparingArchive
             ? "Đang nén và upload..."
             : isSavingProject
-              ? "Đang lưu project..."
+              ? "Đang lưu tài liệu..."
               : project
-                ? "Cập nhật project"
-                : "Tạo project"}
+                ? "Cập nhật tài liệu"
+                : "Tạo tài liệu"}
         </button>
 
         <button
@@ -283,23 +439,92 @@ export function ProjectForm({
   );
 }
 
-function buildProjectPayload(title: string, project?: ProjectFormProject) {
-  const trimmedTitle = title.trim();
+const STATUS_OPTIONS: Array<{
+  value: ResourceStatus;
+  label: string;
+  hint: string;
+}> = [
+  { value: "PUBLISHED", label: "Công khai", hint: "Hiện ngay trên /projects" },
+  { value: "DRAFT", label: "Nháp", hint: "Chỉ thấy trong dashboard" },
+];
+
+function getInitialFields(project?: ProjectFormProject): ResourceFields {
+  return {
+    title: project?.title ?? "",
+    subjectName: project?.subjectName ?? "",
+    semester: project?.semester ?? "",
+    shortDescription: project?.shortDescription ?? "",
+    content: project?.content ?? "",
+    // Drops the placeholder older rows were saved with
+    tags: parseResourceTags(project?.techStack).join(", "),
+    status: project?.status === "DRAFT" ? "DRAFT" : "PUBLISHED",
+  };
+}
+
+function validateFields(fields: ResourceFields) {
+  if (fields.title.trim().length < 5) {
+    return "Tên tài liệu cần ít nhất 5 ký tự.";
+  }
+
+  if (!fields.subjectName.trim()) {
+    return "Vui lòng nhập môn học.";
+  }
+
+  if (!fields.semester.trim()) {
+    return "Vui lòng nhập kỳ học.";
+  }
+
+  if (fields.shortDescription.trim().length < 10) {
+    return "Mô tả ngắn cần ít nhất 10 ký tự.";
+  }
+
+  return null;
+}
+
+function buildProjectPayload(
+  fields: ResourceFields,
+  project?: ProjectFormProject,
+) {
+  const trimmedTitle = fields.title.trim();
 
   return {
     title: trimmedTitle,
     slug: project?.slug || slugifyProjectTitle(trimmedTitle),
-    shortDescription: `Tài liệu cho ${trimmedTitle} đã được đóng gói để tải xuống nhanh và dùng ngay.`,
-    content: `Đây là bộ tài liệu dành cho ${trimmedTitle}. Toàn bộ nội dung được đóng gói thành một file ZIP để người dùng có thể tải về chỉ với một lần bấm.`,
-    subjectName: trimmedTitle,
-    semester: "Tài nguyên chia sẻ",
-    techStack: "ZIP archive, Downloadable resources",
+    shortDescription: fields.shortDescription.trim(),
+    content: fields.content.trim(),
+    subjectName: fields.subjectName.trim(),
+    semester: fields.semester.trim(),
+    techStack: fields.tags,
     githubUrl: project?.githubUrl || "",
     demoUrl: project?.demoUrl || "",
     visibility: "PUBLIC" as const,
-    status: "PUBLISHED" as const,
+    status: fields.status,
     sharedUsers: [],
   };
+}
+
+function Field({
+  label,
+  htmlFor,
+  hint,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium">
+        {label}
+      </label>
+      {children}
+      {hint && (
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+      )}
+    </div>
+  );
 }
 
 async function createProjectArchive(files: File[], projectTitle: string) {
