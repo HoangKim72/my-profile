@@ -2,7 +2,7 @@
 
 > Nhật ký phát triển và roadmap. Tài liệu kỹ thuật chi tiết nằm ở [TECHNICAL.md](TECHNICAL.md).
 >
-> Cập nhật gần nhất: `2026-10-02`
+> Cập nhật gần nhất: `2026-10-03`
 
 ## 1. Dự án này là gì?
 
@@ -372,7 +372,7 @@ Ví dụ chưa có khu quản trị hoàn chỉnh cho:
 1. Tiếp tục nâng chất lượng trang `Skills`.
 2. Xem lại mức độ “case study” của project detail page.
 3. Làm rõ hơn hướng mở rộng cho khu `tools`.
-4. Cân nhắc thêm analytics, tìm kiếm, hoặc dashboard metrics thực dụng hơn.
+4. Cân nhắc thêm analytics hoặc dashboard metrics thực dụng hơn. ~~Tìm kiếm~~ đã có ở `/projects` từ `2026-10-03`.
 
 ### 7.3. Ưu tiên kỹ thuật
 
@@ -449,6 +449,48 @@ Việc còn treo:
 - chạy `prisma migrate resolve --applied 0_init` trên DB production
 - rà các tài liệu viewer đã tạo trước đợt sửa này
 - quyết định có tắt `/register` hay không
+
+Commit trên nhánh `feat/hardening-and-resources`: `e5a3cdc` (danh sách phòng mic do chủ dự án sửa), `25a9c31` (nhóm 1), `3ee0ea7` (docs).
+
+### `2026-10-03`
+
+Làm **nhóm 2: kho tài liệu môn học**, tiếp trên nhánh `feat/hardening-and-resources`.
+
+Đã làm:
+
+- **Form tài liệu đúng nghĩa:**
+  - các trường: tên, môn học, kỳ học, mô tả ngắn, ghi chú, tag, trạng thái Công khai/Nháp
+  - bỏ toàn bộ text tự sinh
+  - tag lưu vào `techStack` dạng chuẩn hoá nên trang Skills cũng đọc được
+- **Lọc `/projects`:**
+  - tìm theo từ khoá
+  - lọc theo môn học và kỳ học, có số lượng
+  - sắp xếp mới nhất / tải nhiều / tên
+  - dùng form GET, không cần JS phía client
+- **Đếm lượt tải:**
+  - thêm cột `projects.downloadCount`, không tính tác giả và admin
+  - hiện trên thẻ, trang chi tiết và dashboard (kèm tổng lượt tải)
+- **Xem trước nội dung ZIP:**
+  - server đọc ZIP lúc upload và lưu `project_files.entries`; bước này cũng từ chối ZIP hỏng
+  - trang chi tiết hiện cây thư mục
+  - thêm script `npm run archives:backfill` cho archive cũ
+- Migration `20261002000000_resource_downloads_and_manifest`.
+- **Sửa thêm:**
+  - set `publishedAt` khi publish
+  - kiểm tra slug trùng khi update
+  - tài liệu Nháp/Lưu trữ bị ẩn khỏi trang chi tiết và download với người ngoài
+- Test tăng từ 31 lên 46 (manifest ZIP, tag, bộ lọc, validator).
+- `tsc`, `eslint`, `next build` đều pass.
+
+Chưa kiểm tra được:
+
+- giao diện chạy thật với DB, vì DB chưa có 2 cột mới (xem TECHNICAL §8.2.1)
+
+Việc còn treo:
+
+- **chạy migration theo TECHNICAL §8.2.1 trước khi merge/deploy**
+- sửa lại môn học, kỳ học, tag cho các tài liệu cũ (đang mang giá trị placeholder)
+- chạy `archives:backfill` nếu muốn có preview cho archive cũ
 
 ## 9. Sơ đồ hiểu nhanh dự án
 

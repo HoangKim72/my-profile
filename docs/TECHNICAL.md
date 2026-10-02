@@ -1,6 +1,6 @@
 # TECHNICAL — Tài liệu kỹ thuật `my-profile`
 
-> Tài liệu mô tả hệ thống **theo đúng trạng thái code** sau đợt sửa nhóm 1 ngày `2026-10-02` (nền commit `b7a111e`).
+> Tài liệu mô tả hệ thống **theo đúng trạng thái code** sau nhóm 1 (`2026-10-02`) và nhóm 2 (`2026-10-03`) trên nhánh `feat/hardening-and-resources`.
 > Nhật ký phát triển và roadmap nằm ở [PROJECT_HISTORY.md](PROJECT_HISTORY.md).
 
 ---
@@ -69,6 +69,8 @@ src/
     db/prisma.ts                # Prisma singleton
     profile/                    # site-profile, resume-content, resume-view
     projects/archive.ts         # slugify, validate ZIP, formatFileSize
+    projects/archive-manifest.ts # đọc danh sách file trong ZIP (preview)
+    projects/resource.ts        # tag, bộ lọc, sort của kho tài liệu
     security/                   # rate-limit (in-memory), request (lấy IP)
     skills/                     # data.ts (tổng hợp skills), types.ts
     storage/                    # project-archives, profile-avatar (Supabase Storage)
@@ -80,6 +82,7 @@ src/
 prisma/
   schema.prisma, seed.ts
 scripts/grant-admin.sql         # Gán role admin thủ công
+scripts/backfill-archive-manifests.ts # Sinh preview ZIP cho archive cũ
 ```
 
 Quy ước:
@@ -129,12 +132,17 @@ User 0..1─n ContactMessage
 | `users` | `id` **trùng với Supabase auth user id**, không dùng cuid. Được upsert bởi `syncAuthUserRecord`. |
 | `profiles` | Profile công khai. Trường `bio` lưu **JSON có version**: `{version, summary, currentFocus, strengths[], highlights[]}` (xem `resume-content.ts`). Nếu bio không phải JSON thì cả chuỗi được coi là `summary`. |
 | `roles`, `user_roles` | Role theo tên. Thứ tự ưu tiên: `admin > viewer > guest`. |
-| `projects` | `status` có các giá trị DRAFT/PUBLISHED/ARCHIVED. `visibility` có các giá trị PUBLIC/PRIVATE/SHARED. `techStack` là chuỗi phân tách bằng dấu phẩy. `subjectName` và `semester` dành cho tài liệu môn học. |
-| `project_files` | `filePath` là path trong bucket Supabase. Khi upload mới, các bản ghi cũ bị xoá và file cũ bị xoá khỏi storage. |
+| `projects` | `status` có các giá trị DRAFT/PUBLISHED/ARCHIVED. `visibility` có các giá trị PUBLIC/PRIVATE/SHARED. `subjectName` là **môn học** và `semester` là **kỳ học**, dùng để lọc. `techStack` lưu **tag** dạng chuỗi chuẩn hoá `"A, B"`; tên cột giữ nguyên để không phải migrate. `publishedAt` được set ở lần đầu chuyển sang PUBLISHED. `downloadCount` là số lượt tải. |
+| `project_files` | `filePath` là path trong bucket Supabase. `entries` (JSONB, có thể null) lưu `ArchiveManifest`: `{version: 1, totalFiles, totalUncompressedBytes, entries: [{path, sizeBytes}], truncated}`, tối đa 500 entry. Khi upload mới, các bản ghi cũ bị xoá và file cũ bị xoá khỏi storage. |
 | `project_permissions` | Unique `(projectId, userId)`. Đã có schema và logic server nhưng **chưa có UI**. |
 | `contact_messages` | Có `isRead` nhưng **chưa có UI đọc**. |
 
-⚠️ Repo **chưa có thư mục `prisma/migrations`**. Môi trường hiện tại có thể đã được tạo bằng `db push` hoặc tạo tay. Xem [§9.2](#92-vận-hành--hạ-tầng).
+Migrations nằm trong `prisma/migrations`:
+
+| Migration | Nội dung |
+|---|---|
+| `0_init` | Baseline toàn bộ schema (DB cũ cần `migrate resolve --applied`, xem §8.2.1) |
+| `20261002000000_resource_downloads_and_manifest` | Thêm `projects.downloadCount` và `project_files.entries` |
 
 ---
 
@@ -195,17 +203,50 @@ User 0..1─n ContactMessage
 
 ### 7.2. Kho tài liệu (`/projects`, `/dashboard/projects`)
 
+Chỉ admin được tạo tài liệu (xem §6.4).
+
 **Luồng tạo hoặc cập nhật** (`ProjectForm`):
 
-1. Người dùng nhập tiêu đề và chọn thư mục (`webkitdirectory`).
-2. Client dựng payload với `slug = slugify(title)`, mô tả và nội dung sinh từ template, `visibility=PUBLIC`, `status=PUBLISHED`.
-3. Gọi `createProject` hoặc `updateProject`. Slug được làm unique bằng cách thêm hậu tố `-2`, `-3`, ...
+1. Admin nhập các trường:
+   - tên tài liệu (≥ 5 ký tự)
+   - **môn học**, **kỳ học** (bắt buộc)
+   - **mô tả ngắn** (10–500 ký tự)
+   - **ghi chú chi tiết** (không bắt buộc)
+   - **tag** (phân tách bằng dấu phẩy)
+   - **trạng thái**: Công khai hoặc Nháp
+
+   Sau đó chọn thư mục (`webkitdirectory`).
+2. Client dựng payload với `slug = slugify(title)` và `visibility=PUBLIC`. Tag được chuẩn hoá bởi `serializeResourceTags`: bỏ trùng không phân biệt hoa thường, tối đa 20 tag, mỗi tag ≤ 40 ký tự. Chuỗi placeholder cũ `"ZIP archive, Downloadable resources"` được coi là không có tag.
+3. Gọi `createProject` hoặc `updateProject`. Slug được làm unique bằng cách thêm hậu tố `-2`, `-3`, ... Khi sửa slug, project hiện tại được loại khỏi phép kiểm tra trùng. `publishedAt` được set ở lần đầu chuyển sang PUBLISHED.
 4. Client nén thư mục bằng JSZip (DEFLATE level 6), kiểm tra kích thước (mặc định ≤ 50MB, chỉnh qua `NEXT_PUBLIC_PROJECT_ARCHIVE_MAX_SIZE`).
-5. Gửi `POST /api/projects/{id}/archive`. Server upload vào bucket **`portfolio-files`** (private) tại `project-archives/{projectId}/{timestamp}-{slug}.zip`. Trong một transaction, server thay bản ghi `project_files` cũ bằng bản mới rồi xoá file cũ khỏi storage. Nếu ghi DB lỗi thì file vừa upload bị xoá để rollback.
+5. Gửi `POST /api/projects/{id}/archive`. Server làm các bước sau:
+   - chạy `buildArchiveManifest`, vừa để kiểm tra đây đúng là ZIP đọc được, vừa để lấy danh sách file
+   - upload vào bucket **`portfolio-files`** (private) tại `project-archives/{projectId}/{timestamp}-{slug}.zip`
+   - trong một transaction, thay bản ghi `project_files` cũ bằng bản mới (kèm `entries`), rồi xoá file cũ khỏi storage
 
-**Hiển thị public:** chỉ lấy các project có `PUBLIC` + `PUBLISHED` **và có ít nhất 1 file**.
+   Nếu ghi DB lỗi thì file vừa upload bị xoá để rollback.
 
-**Download:** `GET /api/projects/{id}/download` kiểm tra visibility, tải blob từ storage qua service role, rồi trả về với `Content-Disposition` hỗ trợ tên UTF-8 và `Cache-Control: private, no-store`.
+**Trang `/projects`:** dùng form GET, không cần JS phía client. Các tham số query:
+
+| Param | Ý nghĩa |
+|---|---|
+| `q` | Tìm không phân biệt hoa thường trong tên, mô tả ngắn, môn học, tag |
+| `subject` | Lọc đúng môn học (danh sách lấy từ `groupBy`, kèm số lượng) |
+| `semester` | Lọc đúng kỳ học |
+| `sort` | `newest` (mặc định, theo `publishedAt` rồi `createdAt`), `downloads`, `title` |
+
+Tham số được đọc qua `parseResourceFilters`: trim, cắt còn 120 ký tự, `sort` sai thì về `newest`. Chỉ lấy các tài liệu `PUBLIC` + `PUBLISHED` **và có ít nhất 1 file**.
+
+**Trang chi tiết `/projects/[slug]`:** hiện môn học, kỳ học, lượt tải, ghi chú và tag. Phần **"Bên trong file ZIP"** (`ArchiveContents`) vẽ cây thư mục từ `entries` bằng `<details>`. Archive upload trước khi có tính năng này sẽ không có preview cho tới khi chạy `npm run archives:backfill` hoặc upload lại. Tài liệu **không ở trạng thái PUBLISHED** chỉ tác giả và admin xem được; người khác nhận 404.
+
+**Download:** `GET /api/projects/{id}/download` kiểm tra lần lượt:
+
+1. Trạng thái: chưa PUBLISHED mà không phải tác giả/admin thì trả 404.
+2. Visibility.
+
+Qua kiểm tra thì route tải blob từ storage qua service role, **tăng `downloadCount`** (không tính tác giả và admin; lỗi đếm không chặn việc tải), rồi trả file với `Content-Disposition` hỗ trợ tên UTF-8 và `Cache-Control: private, no-store`.
+
+**Dashboard `/dashboard/projects`:** hiện môn học, kỳ học, lượt tải từng tài liệu và tổng lượt tải.
 
 **Xoá:** xoá file trong storage trước (lỗi chỉ được log, không chặn), sau đó xoá bản ghi. Quan hệ cascade sẽ xoá `files` và `permissions` theo.
 
@@ -218,14 +259,14 @@ Giới hạn body: `serverActions.bodySizeLimit = 10mb`, `proxyClientMaxBodySize
 | Nguồn | Cấu hình | Cache | Dữ liệu |
 |---|---|---|---|
 | GitHub | `GITHUB_USERNAME` hoặc lấy từ `profile.githubUrl`; `GITHUB_TOKEN` tuỳ chọn; `SKILLS_GITHUB_REPO_LIMIT` | `revalidate` 6h | Repo, ngôn ngữ chính, topics, dependency trong `package.json` |
-| Project archive | DB | Không cache | Đọc `techStack` của tối đa 24 project public |
+| Project archive | DB | Không cache | Đọc **tag** (`techStack`) của tối đa 24 tài liệu public. Chỉ tag khớp `TECH_DEFINITIONS` mới thành skill, ví dụ "Java" thì có, "Đề thi" thì không. |
 | WakaTime | `WAKATIME_API_KEY` | `revalidate` 1h | Ngôn ngữ, editor, OS trong 7 và 30 ngày gần nhất |
 
 Mỗi token được chuẩn hoá qua `TECH_DEFINITIONS` (alias → tên chuẩn + category). Sau đó hệ thống gộp thành `SkillTechCard`, gồm usage %, số project, nhãn nguồn và danh sách project làm bằng chứng. UI `SkillsShowcase` hỗ trợ lọc theo nhóm và sort theo usage, số project, độ mới và alphabet.
 
 Mỗi nguồn có trạng thái `ready | needs-config | empty | error` để hiển thị trên UI.
 
-> Lưu ý: vì `ProjectForm` luôn ghi `techStack = "ZIP archive, Downloadable resources"`, nguồn **Project archive hiện gần như không đóng góp skill nào**. Xem §9.1.
+> Tài liệu tạo trước `2026-10-03` vẫn mang tag placeholder cũ. Cần sửa lại tag trong dashboard thì nguồn này mới có dữ liệu.
 
 ### 7.4. Tool lọc mic (`/tools/mic-filter`)
 
@@ -329,7 +370,27 @@ Khi sửa `schema.prisma`, dùng `npm run prisma:migrate` để tạo migration 
 npx dotenv -e .env.local -- prisma migrate resolve --applied 0_init
 ```
 
-Sau bước đó, `prisma migrate deploy` hoạt động bình thường cho các migration sau. Nếu muốn chắc DB khớp schema, chạy `prisma migrate diff --from-url "$DIRECT_URL" --to-schema-datamodel prisma/schema.prisma` trước khi resolve: kết quả rỗng nghĩa là khớp.
+Sau bước đó, `prisma migrate deploy` hoạt động bình thường cho các migration sau.
+
+**Thứ tự triển khai nhánh `feat/hardening-and-resources` lên production. Phải làm trước khi deploy code**, vì code mới đọc `downloadCount` và `entries`:
+
+1. Kiểm tra DB khớp baseline. Lệnh sau phải chỉ in ra đúng 2 câu `ALTER TABLE` của migration `20261002000000_...`:
+   ```bash
+   npx dotenv -e .env.local -- prisma migrate diff --from-url "$DIRECT_URL" --to-schema-datamodel prisma/schema.prisma --script
+   ```
+2. Đánh dấu baseline đã chạy:
+   ```bash
+   npx dotenv -e .env.local -- prisma migrate resolve --applied 0_init
+   ```
+3. Áp dụng migration mới:
+   ```bash
+   npm run prisma:deploy
+   ```
+4. Deploy code (merge vào `main`).
+5. Tuỳ chọn: sinh preview cho archive cũ:
+   ```bash
+   npm run archives:backfill
+   ```
 
 ### 8.3. Scripts
 
@@ -340,6 +401,7 @@ Sau bước đó, `prisma migrate deploy` hoạt động bình thường cho cá
 | `postinstall` | `prisma generate` (để Vercel có Prisma Client) |
 | `lint` | ESLint |
 | `test` | Unit test bằng `node:test` + `tsx` (file `src/**/__tests__/*.test.ts`) |
+| `archives:backfill` | Sinh `entries` cho các archive cũ (thêm `-- --dry-run` để chạy thử) |
 | `prisma:migrate` / `prisma:deploy` / `prisma:seed` | Migrate dev / deploy / seed role |
 
 ### 8.4. Deploy (Vercel)
@@ -354,20 +416,17 @@ Sau bước đó, `prisma migrate deploy` hoạt động bình thường cho cá
 
 ### 9.1. Lỗi / lệch so với ý đồ
 
-> Đã sửa ngày 2026-10-02: viewer tạo được tài liệu, open redirect ở callback, form liên hệ thiếu chống spam. Chi tiết ở PROJECT_HISTORY §8.
+> Đã sửa ngày 2026-10-02: viewer tạo được tài liệu, open redirect ở callback, form liên hệ thiếu chống spam. Đã sửa ngày 2026-10-03: `publishedAt` không được set, slug trùng khi update, tag/môn/kỳ bị ghi đè bằng template. Chi tiết ở PROJECT_HISTORY §8.
 
 | # | Vấn đề | Vị trí | Mức |
 |---|---|---|---|
 | 3 | **Rate limit lưu trong bộ nhớ** (`Map` trên `globalThis`). Trên Vercel serverless, mỗi instance có bộ đếm riêng nên giới hạn gần như không có tác dụng. | `src/lib/security/rate-limit.ts` | 🟠 Trung bình |
-| 5 | `publishProject` không set `publishedAt`. | `src/actions/projects.ts` | 🟡 Thấp |
-| 6 | `updateProject` ghi `slug` từ input mà không kiểm tra trùng. Hiện form luôn gửi lại slug cũ nên chưa gây lỗi. | `src/actions/projects.ts` | 🟡 Thấp |
-| 7 | `techStack` của tài liệu luôn là template, nên skills từ nguồn Project archive gần như rỗng. Đồng thời `subjectName`/`semester` bị ghi đè bằng tiêu đề và "Tài nguyên chia sẻ". | `ProjectForm.buildProjectPayload` | 🟡 Thấp |
 | 8 | Text mặc định trong `resume-view.ts`, dashboard layout và avatar route là tiếng Việt **không dấu**. | nhiều file | 🟡 Thấp |
 | 9 | `middleware.ts` đã bị đổi tên thành `proxy.ts` từ Next 16 (tên cũ vẫn chạy nhưng là deprecated). | `src/middleware.ts` | 🟡 Thấp |
 
 ### 9.2. Vận hành / hạ tầng
 
-- Migration `0_init` đã có trong repo nhưng **DB production cần chạy `migrate resolve --applied 0_init` một lần** (§8.2.1).
+- DB production cần chạy theo đúng thứ tự ở §8.2.1 (resolve `0_init`, deploy migration mới) **trước khi** deploy code nhánh hiện tại.
 - Mới có unit test cho logic thuần: mic-filter, quyền project, redirect. Chưa có integration test (server actions + DB) và e2e.
 - Chưa có CI chạy `lint`, `test`, `build`.
 - Đăng ký `/register` vẫn mở cho mọi người, dù viewer hiện không làm được gì thêm ngoài xem. Có thể cân nhắc tắt.
