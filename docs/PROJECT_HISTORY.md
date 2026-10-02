@@ -533,6 +533,32 @@ Việc còn treo (bổ sung):
 - migration `tool_settings` nằm chung bước deploy ở TECHNICAL §8.2.1
 - giao diện tool mic có đề xuất đổi sang design system mới (memory ghi nhận ngày `2026-10-03`), **chưa được duyệt**; nhóm 3 vẫn giữ giao diện tối hiện tại
 
+#### Chạy migration lên Supabase (cùng ngày `2026-10-03`)
+
+Lý do DB không kết nối được: project Supabase **bị pause**. Chủ dự án đã resume, sau đó mình chạy theo TECHNICAL §8.2.1 (đã được chủ dự án đồng ý):
+
+1. `migrate diff` (chỉ đọc): DB khớp baseline `0_init`, chỉ thiếu 2 cột và bảng `tool_settings`.
+2. `migrate resolve --applied 0_init`.
+3. `migrate deploy`: áp dụng `20261002000000_resource_downloads_and_manifest` và `20261003000000_tool_settings`.
+4. `migrate diff` lần nữa: không còn khác biệt.
+
+Kết quả kiểm tra:
+
+- `archives:backfill --dry-run`: đọc được cả 4 archive cũ (31 đến 5327 file). **Chưa ghi.**
+- Rà dữ liệu: cả 4 tài liệu đều do admin tạo, hệ thống chỉ có 1 user. Việc "rà tài liệu do viewer tạo" coi như xong.
+- Chạy app với DB thật:
+  - `/projects`: lọc, tìm (`q=php` ra 1 kết quả), sắp xếp đều chạy đúng
+  - trang chi tiết chạy đúng
+  - `/tools/mic-filter` đọc cấu hình không lỗi
+- Code trên `main` vẫn chạy được với schema mới, vì thay đổi chỉ là thêm cột có default và thêm bảng.
+
+Việc còn treo:
+
+- chạy `npm run archives:backfill` (ghi thật) để có preview ZIP
+- sửa môn học, kỳ học, tag cho 4 tài liệu (đang là "Shared resources" và tag placeholder)
+- merge nhánh `feat/hardening-and-resources` vào `main` để deploy
+- quyết định có tắt `/register` hay không
+
 ## 9. Sơ đồ hiểu nhanh dự án
 
 ### Lớp public

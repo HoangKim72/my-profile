@@ -464,7 +464,7 @@ Sau bước đó, `prisma migrate deploy` hoạt động bình thường cho cá
 
 ### 9.2. Vận hành / hạ tầng
 
-- DB production cần chạy theo đúng thứ tự ở §8.2.1 (resolve `0_init`, deploy migration mới) **trước khi** deploy code nhánh hiện tại.
+- DB Supabase đã được baseline và chạy đủ 3 migration ngày `2026-10-03`. Từ nay chỉ cần `npm run prisma:deploy` **trước khi** deploy code có migration mới.
 - Mới có unit test cho logic thuần: mic-filter, quyền project, redirect. Chưa có integration test (server actions + DB) và e2e.
 - Chưa có CI chạy `lint`, `test`, `build`.
 - Đăng ký `/register` vẫn mở cho mọi người, dù viewer hiện không làm được gì thêm ngoài xem. Có thể cân nhắc tắt.
