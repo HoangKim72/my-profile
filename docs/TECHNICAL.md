@@ -1,6 +1,6 @@
 # TECHNICAL — Tài liệu kỹ thuật `my-profile`
 
-> Tài liệu mô tả hệ thống **theo đúng trạng thái code** sau nhóm 1 (`2026-10-02`) và nhóm 2 (`2026-10-03`) trên nhánh `feat/hardening-and-resources`.
+> Tài liệu mô tả hệ thống **theo đúng trạng thái code** sau nhóm 1 (`2026-10-02`), nhóm 2 và nhóm 3 (`2026-10-03`) trên nhánh `feat/hardening-and-resources`.
 > Nhật ký phát triển và roadmap nằm ở [PROJECT_HISTORY.md](PROJECT_HISTORY.md).
 
 ---
@@ -77,7 +77,13 @@ src/
     supabase/                   # client/server Supabase clients
     validators/                 # Zod schemas
     utils/constants.ts          # SITE_NAME, NAV_LINKS, ADMIN_NAV_LINKS
-  tools/mic-filter/             # Logic thuần của tool mic: processor, alarm, constants, types
+  tools/mic-filter/             # Logic thuần của tool mic:
+                                #   processor, alarm, types
+                                #   config (cấu hình + schema)
+                                #   constants (giá trị mặc định)
+                                #   session (localStorage)
+                                #   export (text/bảng)
+  lib/tools/mic-filter-settings.ts # Đọc cấu hình tool mic từ DB (server-only)
   types/index.ts                # Kiểu dùng chung
 prisma/
   schema.prisma, seed.ts
@@ -136,6 +142,7 @@ User 0..1─n ContactMessage
 | `project_files` | `filePath` là path trong bucket Supabase. `entries` (JSONB, có thể null) lưu `ArchiveManifest`: `{version: 1, totalFiles, totalUncompressedBytes, entries: [{path, sizeBytes}], truncated}`, tối đa 500 entry. Khi upload mới, các bản ghi cũ bị xoá và file cũ bị xoá khỏi storage. |
 | `project_permissions` | Unique `(projectId, userId)`. Đã có schema và logic server nhưng **chưa có UI**. |
 | `contact_messages` | Có `isRead` nhưng **chưa có UI đọc**. |
+| `tool_settings` | Key/value JSON cho các tool. Key `mic-filter` lưu `MicFilterConfig`. Không có hàng nào thì tool dùng mặc định trong code. |
 
 Migrations nằm trong `prisma/migrations`:
 
@@ -143,6 +150,7 @@ Migrations nằm trong `prisma/migrations`:
 |---|---|
 | `0_init` | Baseline toàn bộ schema (DB cũ cần `migrate resolve --applied`, xem §8.2.1) |
 | `20261002000000_resource_downloads_and_manifest` | Thêm `projects.downloadCount` và `project_files.entries` |
+| `20261003000000_tool_settings` | Tạo bảng `tool_settings` |
 
 ---
 
@@ -270,7 +278,7 @@ Mỗi nguồn có trạng thái `ready | needs-config | empty | error` để hi�
 
 ### 7.4. Tool lọc mic (`/tools/mic-filter`)
 
-Toàn bộ xử lý chạy **ở client**. Không có bước lưu DB và không cần đăng nhập.
+Việc xử lý file chạy **ở client** và không cần đăng nhập. Server chỉ đọc cấu hình (xem mục **Cấu hình** bên dưới) rồi truyền xuống cho client.
 
 **Input:** file `.xls` hoặc `.xlsx`. Tool chỉ đọc **sheet đầu tiên**, dòng 1 là header. Tên cột được so khớp sau khi trim, gộp khoảng trắng và chuyển về chữ thường. **Dấu tiếng Việt vẫn phải đúng.** Riêng phần ghi chú thì được bỏ dấu trước khi tìm từ khoá.
 
@@ -282,27 +290,57 @@ Toàn bộ xử lý chạy **ở client**. Không có bước lưu DB và không
 | Ghi chú | ✅ |
 | Ngày học | Không (chỉ dùng để hiển thị nhãn ngày nếu cả file có đúng 1 ngày) |
 
-**Xử lý** (`src/tools/mic-filter/processor.ts`):
+**Xử lý** (`processMicFilterFile(file, config)` trong `src/tools/mic-filter/processor.ts`):
 
 1. Parse từng dòng và bỏ dòng trống. Dòng nào thiếu mã phòng, sai giờ, hoặc có giờ bắt đầu ≥ giờ kết thúc sẽ **gây lỗi cho cả file** (thông báo kèm số dòng).
 2. Nếu ghi chú chứa "đã báo nghỉ" hoặc "không phát mic", dòng đó được đánh dấu `isIgnoredForMic`.
-3. Mỗi dòng được xác định thuộc ca nào theo khung giờ (`SHIFT_WINDOWS`): sáng 07:30–11:35, chiều 12:30–16:35, tối 18:00–20:15. Một dòng có thể chồng lên nhiều ca.
-4. Chỉ giữ các phòng có trong `WIRELESS_MIC_ROOMS` (danh sách hard-code các phòng E1-xx.yy có mic không dây). Kết quả được gộp theo phòng.
+3. Mỗi dòng được xác định thuộc ca nào theo `config.shifts`. Mặc định là sáng 07:30–11:35, chiều 12:30–16:35, tối 18:00–20:15. Một dòng có thể chồng lên nhiều ca.
+4. Chỉ giữ các phòng có trong `config.wirelessRooms`. Kết quả được gộp theo phòng.
 5. Tool sinh ra 2 bảng:
-   - **Bảng phát mic buổi sáng:** các phòng dùng ca sáng, nhóm theo tầng.
-   - **Bảng giữa trưa:** mỗi tầng chia thành 3 nhóm:
+   - **Bảng 1, soạn mic ca sáng:** các phòng dùng ca sáng, nhóm theo tầng.
+   - **Bảng 2, buổi trưa:** mỗi tầng chia thành 3 nhóm:
      - sáng có, chiều không → **thu**
      - sáng không, chiều có → **phát**
      - cả sáng và chiều → **thay pin**
-6. **Nhắc bật máy lạnh** (`alarm.ts`) có 2 rule:
+6. **Nhắc bật máy lạnh** (`alarm.ts`) lấy rule từ `config.alarmRules`. Mặc định có 2 rule:
    - có lớp bắt đầu đúng 9h20 → nhắc lúc 9h
    - có lớp bắt đầu trong khoảng 15h–16h → nhắc lúc 15h
 
-   Gợi ý chỉ hiện trong khung giờ cho phép. Tool dùng `setTimeout` và Browser Notification API, nên **tab phải luôn mở** thì mới nhận được thông báo.
+   Rule nhắc áp dụng cho **mọi phòng**, không chỉ phòng có mic không dây. Câu gợi ý và nhãn giờ được sinh tự động bởi `describeAlarmRule`. Gợi ý chỉ hiện trong khung "hiện gợi ý" của rule. Tool dùng `setTimeout` và Browser Notification API, nên **tab phải luôn mở** thì mới nhận được thông báo.
 
-**Kết ca** (`ShiftSummaryPanel`): form đếm các mục tăng/giảm máy lạnh, phản ánh phòng, đồ mượn, pin đã dùng và pin dư. Tool sinh ra đoạn văn bản báo cáo để copy vào clipboard. State chỉ nằm trong bộ nhớ, **reload trang là mất**.
+**Checklist:** mỗi số phòng trên 2 bảng là một nút bấm. Bấm vào thì phòng được đánh dấu đã soạn, đã thu, đã phát hoặc đã thay pin, bấm lại thì bỏ đánh dấu. Mỗi bảng có chip tiến độ như "Đã thu 1/3". Key của checklist có dạng `kind:floor:room`. Khi upload file mới hoặc bấm "Làm lại", checklist được xoá.
 
-Muốn đổi danh sách phòng, khung giờ hoặc rule nhắc thì sửa `src/tools/mic-filter/constants.ts` và `alarm.ts` rồi deploy lại.
+**Xuất bảng** (`export.ts`, `components/tools/table-image.ts`): mỗi bảng có 2 nút.
+
+- **Copy chữ:** copy văn bản gọn để dán Zalo, bỏ các nhóm rỗng.
+- **Copy ảnh:** vẽ bảng ra PNG bằng canvas, độ phân giải 2x, không dùng thư viện ngoài. Ảnh được copy vào clipboard. Nếu trình duyệt không cho copy ảnh thì ảnh được tải về dưới dạng file PNG.
+
+**Kết ca** (`ShiftSummaryPanel`): form đếm các mục tăng/giảm máy lạnh, phản ánh phòng, đồ mượn, pin đã dùng và pin dư. Tool sinh ra đoạn văn bản báo cáo để copy. Nút **"Xoá dữ liệu kết ca"** (có hỏi xác nhận) đưa các bộ đếm về 0 và giữ nguyên ca đang chọn.
+
+**Giữ phiên làm việc** (`session.ts`): localStorage key `mic-filter:session:v1` lưu báo cáo đã lọc, checklist và form kết ca, kèm `dayKey`.
+
+- Trạng thái được khôi phục sau khi mount; có toast "Đã khôi phục phiên làm việc hôm nay".
+- Dữ liệu của ngày khác bị bỏ.
+- Nếu tab mở qua đêm, tool tự reset khi sang ngày mới.
+- Dữ liệu hỏng thì được vá hoặc bỏ qua.
+- Đọc/ghi localStorage lỗi (chế độ riêng tư) không làm hỏng tool.
+
+Báo thức đã đặt **không** được khôi phục, nên sau khi reload cần đặt lại.
+
+**Cấu hình** (`config.ts`, bảng `tool_settings`, trang `/dashboard/tools/mic-filter` chỉ dành cho admin):
+
+- `MicFilterConfig = { version: 1, wirelessRooms, shifts: {morning, afternoon, evening}, alarmRules }`. Giờ được lưu bằng số phút tính từ 0h.
+- Schema `micFilterConfigSchema` kiểm tra các điều kiện sau:
+  - mã phòng có dạng `E1-05.07`, được chuẩn hoá viết hoa và bỏ trùng; cần 1–500 phòng
+  - giờ bắt đầu ca phải trước giờ kết thúc
+  - khung giờ của rule nhắc không bị ngược
+  - id rule không trùng; tối đa 20 rule
+- `getMicFilterConfig()` **không bao giờ throw**. Khi chưa có hàng nào, dữ liệu hỏng hoặc DB lỗi, hàm trả về `DEFAULT_MIC_FILTER_CONFIG` (lấy từ `constants.ts`), để tool vẫn dùng được mỗi ca.
+- Server action `saveMicFilterConfig` (upsert) và `resetMicFilterConfig` (xoá hàng để về mặc định) chỉ cho admin, và revalidate trang tool.
+- Form admin cho sửa danh sách phòng (mỗi dòng một phòng), giờ 3 ca và rule nhắc (thêm/xoá, xem trước câu gợi ý).
+- Sidebar dashboard chỉ hiện link "Tool lọc mic" và "Settings" với admin (`adminOnly` trong `ADMIN_NAV_LINKS`).
+
+`constants.ts` giờ chỉ là **giá trị mặc định**. Khi đã lưu cấu hình trong dashboard, sửa `constants.ts` không còn tác dụng cho tới khi bấm "Về mặc định".
 
 ### 7.5. Liên hệ (`/contact`)
 
@@ -374,7 +412,7 @@ Sau bước đó, `prisma migrate deploy` hoạt động bình thường cho cá
 
 **Thứ tự triển khai nhánh `feat/hardening-and-resources` lên production. Phải làm trước khi deploy code**, vì code mới đọc `downloadCount` và `entries`:
 
-1. Kiểm tra DB khớp baseline. Lệnh sau phải chỉ in ra đúng 2 câu `ALTER TABLE` của migration `20261002000000_...`:
+1. Kiểm tra DB khớp baseline. Lệnh sau chỉ được in ra 2 câu `ALTER TABLE` (migration `20261002000000_...`) và 1 câu `CREATE TABLE "tool_settings"` (migration `20261003000000_...`):
    ```bash
    npx dotenv -e .env.local -- prisma migrate diff --from-url "$DIRECT_URL" --to-schema-datamodel prisma/schema.prisma --script
    ```

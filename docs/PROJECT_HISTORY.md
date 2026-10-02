@@ -492,6 +492,47 @@ Việc còn treo:
 - sửa lại môn học, kỳ học, tag cho các tài liệu cũ (đang mang giá trị placeholder)
 - chạy `archives:backfill` nếu muốn có preview cho archive cũ
 
+#### Nhóm 3: tool lọc mic (cùng ngày `2026-10-03`)
+
+Đã làm:
+
+- **Giữ phiên làm việc qua reload:**
+  - báo cáo đã lọc, checklist và form kết ca được lưu vào localStorage theo ngày
+  - tự xoá khi sang ngày mới, kể cả khi tab mở qua đêm
+- **Checklist trên bảng:**
+  - bấm số phòng để đánh dấu đã soạn/thu/phát/thay pin
+  - chip tiến độ cho từng loại
+- **Cấu hình trong dashboard:**
+  - danh sách phòng mic, giờ 3 ca và rule nhắc máy lạnh chuyển vào bảng `tool_settings`
+  - trang admin `/dashboard/tools/mic-filter`
+  - DB lỗi thì tool tự dùng cấu hình mặc định
+  - migration `20261003000000_tool_settings`
+- **Xuất bảng:** "Copy chữ" và "Copy ảnh" (PNG vẽ bằng canvas, không thêm thư viện); nếu không copy được ảnh thì tải file về.
+- Nút **"Xoá dữ liệu kết ca"**.
+- Sidebar ẩn các link chỉ dành cho admin với viewer.
+- Test tăng từ 46 lên 63 (config, processor với cấu hình tuỳ chỉnh, session, export).
+- `tsc`, `eslint`, `next build` đều pass.
+
+Đã chạy thử trên trình duyệt (dev server, `/tools/mic-filter`):
+
+- upload file → 2 bảng đúng
+- bấm checklist → tiến độ cập nhật
+- reload → khôi phục đúng kết quả và checklist
+- ảnh PNG xuất ra hiển thị đúng tiếng Việt
+
+Chưa kiểm tra được:
+
+- copy vào clipboard: browser pane chặn clipboard, nút copy kết ca có sẵn từ trước cũng bị chặn
+- trang cấu hình admin: cần đăng nhập và DB
+
+**Phát hiện:** DB trong `.env.local` hiện **không kết nối được**. Supabase pooler báo `tenant/user postgres.<project-ref> not found`; có thể project đã bị pause/xoá hoặc env đã cũ.
+
+Việc còn treo (bổ sung):
+
+- kiểm tra lại project Supabase / `.env.local`
+- migration `tool_settings` nằm chung bước deploy ở TECHNICAL §8.2.1
+- giao diện tool mic có đề xuất đổi sang design system mới (memory ghi nhận ngày `2026-10-03`), **chưa được duyệt**; nhóm 3 vẫn giữ giao diện tối hiện tại
+
 ## 9. Sơ đồ hiểu nhanh dự án
 
 ### Lớp public
