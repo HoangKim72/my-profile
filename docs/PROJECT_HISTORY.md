@@ -1,8 +1,8 @@
 # PROJECT_HISTORY
 
-> Single source of truth cho toàn bộ tài liệu dự án.
+> Nhật ký phát triển và roadmap. Tài liệu kỹ thuật chi tiết nằm ở [TECHNICAL.md](TECHNICAL.md).
 >
-> Cập nhật gần nhất: `2026-04-02`
+> Cập nhật gần nhất: `2026-10-02`
 
 ## 1. Dự án này là gì?
 
@@ -326,21 +326,19 @@ Phần production đã tiến bộ, nhưng vẫn cần theo dõi:
 - deployment protection
 - upload/download ngoài môi trường local
 
-### 6.2. Migration Prisma chưa được commit đầy đủ
+### 6.2. Migration Prisma đã có baseline, DB production cần resolve
 
-Hiện repo có schema và seed, nhưng chưa có lịch sử migration được commit rõ ràng.
+Từ `2026-10-02`, repo đã có `prisma/migrations/0_init`. DB production đã có bảng từ trước, nên cần chạy `prisma migrate resolve --applied 0_init` **một lần** (xem TECHNICAL §8.2.1).
 
-Đây là một khoảng trống quan trọng nếu muốn vận hành dự án ổn định hơn theo team flow.
+### 6.3. Test coverage mới ở mức unit
 
-### 6.3. Test coverage gần như chưa có
+Từ `2026-10-02` đã có `npm test` (`node:test` + `tsx`), gồm 31 test cho mic-filter, quyền project và redirect an toàn.
 
-Hiện chưa thấy:
+Vẫn còn thiếu:
 
-- unit tests
 - integration tests
 - e2e tests
-
-Điều này làm tăng rủi ro hồi quy khi tiếp tục mở rộng dashboard, auth và tools.
+- CI
 
 ### 6.4. Admin panel chưa phủ hết các capability
 
@@ -358,7 +356,7 @@ Ví dụ chưa có khu quản trị hoàn chỉnh cho:
 ### 7.1. Ưu tiên gần
 
 1. Chốt production config thật sự ổn định.
-2. Tạo và commit migration Prisma.
+2. ~~Tạo và commit migration Prisma.~~ Đã xong `2026-10-02`, còn bước resolve trên production.
 3. Rà lại toàn bộ flow:
    - auth
    - dashboard
@@ -367,7 +365,7 @@ Ví dụ chưa có khu quản trị hoàn chỉnh cho:
    - skills evidence
    - mic-filter
 4. Hoàn thiện thêm admin area còn thiếu.
-5. Bắt đầu thêm test cho những luồng có rủi ro cao.
+5. ~~Bắt đầu thêm test cho những luồng có rủi ro cao.~~ Đã có unit test `2026-10-02`, bước tiếp theo là CI và integration test.
 
 ### 7.2. Ưu tiên sản phẩm
 
@@ -411,6 +409,46 @@ Ví dụ chưa có khu quản trị hoàn chỉnh cho:
 - `Projects` được bỏ khỏi navbar chính
 - project archive được giữ làm đích điều hướng từ skill evidence
 - docs được gom lại về một nơi duy nhất là file này
+
+### `2026-10-02`
+
+Đọc lại toàn bộ code, viết `docs/TECHNICAL.md`, rồi làm **nhóm 1: sửa lỗi bảo mật và nền móng**.
+
+Quyết định sản phẩm đã chốt với chủ dự án:
+
+- "Project" là **kho tài liệu môn học dạng ZIP**, không phải case study portfolio
+- **chỉ admin được đăng tài liệu**
+- tool lọc mic phục vụ **công việc cá nhân** của chủ site
+- PROJECT_HISTORY là nhật ký, còn TECHNICAL.md là tài liệu kỹ thuật
+
+Đã làm:
+
+- **Chỉ admin được tạo tài liệu:**
+  - thêm `canCreateProject` và chặn trong `createProject`
+  - `/dashboard/projects/new` dùng `requireAdmin`
+  - ẩn nút "Tạo folder" với viewer ở dashboard
+- **Sửa open redirect ở `/auth/callback`:**
+  - thêm `getSafeRedirectPath` (`src/lib/security/redirect.ts`)
+  - redirect luôn dựa trên origin của request
+- **Chống spam form liên hệ:**
+  - honeypot `website`
+  - rate limit theo IP (3 tin/10 phút)
+  - rate limit theo email đếm trong DB (3 tin/giờ)
+  - form hiện lỗi và thông báo thành công
+  - action không còn trả object tin nhắn về client
+- **Migration Prisma:** thêm `prisma/migrations/0_init` và `migration_lock.toml`
+- **Test:** thêm script `npm test` với 31 test:
+  - `processMicFilterFile`
+  - rule nhắc máy lạnh
+  - quyền project
+  - `getSafeRedirectPath`
+- Đã kiểm tra `tsc`, `eslint`, `next build`: đều pass
+
+Việc còn treo:
+
+- chạy `prisma migrate resolve --applied 0_init` trên DB production
+- rà các tài liệu viewer đã tạo trước đợt sửa này
+- quyết định có tắt `/register` hay không
 
 ## 9. Sơ đồ hiểu nhanh dự án
 
