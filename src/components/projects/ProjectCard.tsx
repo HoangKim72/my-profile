@@ -11,7 +11,6 @@ interface ProjectCardProject {
   id: string;
   slug: string;
   title: string;
-  shortDescription: string;
   subjectName: string;
   semester: string;
   techStack: string;
@@ -75,10 +74,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
             {project.semester}
           </Badge>
         </div>
-
-        <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted">
-          {project.shortDescription}
-        </p>
 
         {tags.length > 0 && (
           <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tag">
