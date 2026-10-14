@@ -19,6 +19,7 @@
     "seed": "dotenv -e .env.local -- tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@cloudflare/speedtest": "1.14.2",
     "@prisma/client": "^5.21.1",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.46.0",
