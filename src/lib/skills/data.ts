@@ -21,22 +21,22 @@ const WAKATIME_REVALIDATE_SECONDS = 60 * 60;
 
 const DEFAULT_SOFT_SKILLS: SkillsSoftSkill[] = [
   {
-    name: "Problem Solving",
+    name: "Giải quyết vấn đề",
     description:
-      "Tách bài toán thành phần nhỏ, ưu tiên đúng bottleneck và đi tới lời giải dùng được.",
+      "Tách bài toán thành phần nhỏ, ưu tiên đúng điểm nghẽn và đi tới lời giải dùng được.",
   },
   {
-    name: "Communication",
+    name: "Giao tiếp",
     description:
       "Trao đổi rõ ràng về tiến độ, rủi ro và cách phối hợp để công việc không bị nghẽn.",
   },
   {
-    name: "Teamwork",
+    name: "Làm việc nhóm",
     description:
       "Làm việc theo tinh thần đồng đội, giữ code dễ bàn giao và dễ mở rộng cho người khác.",
   },
   {
-    name: "Time Management",
+    name: "Quản lý thời gian",
     description:
       "Biết chia nhỏ việc, giữ nhịp triển khai và cân bằng giữa chất lượng với tốc độ giao hàng.",
   },
@@ -47,196 +47,196 @@ const TECH_DEFINITIONS = [
     label: "TypeScript",
     category: "core",
     group: "language",
-    summary: "Typed foundation cho app logic va component contracts.",
+    summary: "Nền tảng có kiểu dữ liệu cho logic ứng dụng và kiểu dữ liệu của component.",
     tokens: ["typescript", "ts"],
   },
   {
     label: "JavaScript",
     category: "core",
     group: "language",
-    summary: "Ngon ngu nen cho scripting, browser behavior va app flows.",
+    summary: "Ngôn ngữ nền cho scripting, hành vi trình duyệt và luồng ứng dụng.",
     tokens: ["javascript", "js"],
   },
   {
     label: "React",
     category: "core",
     group: "frontend",
-    summary: "Build giao dien tuong tac voi component-based UI.",
+    summary: "Xây dựng giao diện tương tác theo hướng component.",
     tokens: ["react"],
   },
   {
     label: "Next.js",
     category: "core",
     group: "frontend",
-    summary: "Full-stack React framework cho routing, data loading va delivery.",
+    summary: "Framework React full-stack cho routing, tải dữ liệu và triển khai.",
     tokens: ["next", "nextjs"],
   },
   {
     label: "Node.js",
     category: "core",
     group: "backend",
-    summary: "Runtime cho API, scripts va server-side application logic.",
+    summary: "Môi trường chạy cho API, script và logic phía máy chủ.",
     tokens: ["node", "nodejs"],
   },
   {
     label: "Tailwind CSS",
     category: "core",
     group: "frontend",
-    summary: "Utility-first styling cho responsive UI systems.",
+    summary: "Styling utility-first cho hệ thống giao diện responsive.",
     tokens: ["tailwind", "tailwindcss"],
   },
   {
     label: "HTML",
     category: "core",
     group: "frontend",
-    summary: "Semantic structure va content scaffolding cho giao dien.",
+    summary: "Cấu trúc ngữ nghĩa và khung nội dung cho giao diện.",
     tokens: ["html"],
   },
   {
     label: "CSS",
     category: "core",
     group: "frontend",
-    summary: "Layout, motion va visual presentation cho interfaces.",
+    summary: "Bố cục, chuyển động và trình bày trực quan cho giao diện.",
     tokens: ["css"],
   },
   {
     label: "PostgreSQL",
     category: "core",
     group: "database",
-    summary: "Relational data modeling, queries va persistence co cau truc.",
+    summary: "Mô hình hoá dữ liệu quan hệ, truy vấn và lưu trữ có cấu trúc.",
     tokens: ["postgres", "postgresql", "pg"],
   },
   {
     label: "Prisma",
     category: "core",
     group: "database",
-    summary: "Typed ORM va schema-driven database workflows.",
+    summary: "ORM có kiểu dữ liệu và quy trình làm việc với database theo schema.",
     tokens: ["prisma"],
   },
   {
     label: "Supabase",
     category: "core",
     group: "backend",
-    summary: "Backend services cho auth, storage va Postgres-powered apps.",
+    summary: "Dịch vụ backend cho xác thực, lưu trữ và ứng dụng dựa trên Postgres.",
     tokens: ["supabase"],
   },
   {
     label: "Express",
     category: "core",
     group: "backend",
-    summary: "Lightweight HTTP APIs va middleware-based servers.",
+    summary: "HTTP API gọn nhẹ và máy chủ dựa trên middleware.",
     tokens: ["express"],
   },
   {
     label: "NestJS",
     category: "core",
     group: "backend",
-    summary: "Structured backend modules, DI va scalable service layers.",
+    summary: "Module backend có cấu trúc, DI và tầng service dễ mở rộng.",
     tokens: ["nest", "nestjs"],
   },
   {
     label: "REST API",
     category: "core",
     group: "backend",
-    summary: "Resource-based APIs dung de ket noi app va services.",
+    summary: "API theo tài nguyên, dùng để kết nối ứng dụng và dịch vụ.",
     tokens: ["rest", "restapi"],
   },
   {
     label: "GraphQL",
     category: "core",
     group: "backend",
-    summary: "Typed graph queries cho flexible client data access.",
+    summary: "Truy vấn dạng graph có kiểu, giúp client lấy dữ liệu linh hoạt.",
     tokens: ["graphql", "apollo"],
   },
   {
     label: "Python",
     category: "core",
     group: "language",
-    summary: "General-purpose scripting, automation va backend logic.",
+    summary: "Scripting đa dụng, tự động hoá và logic backend.",
     tokens: ["python", "py"],
   },
   {
     label: "PHP",
     category: "core",
     group: "backend",
-    summary: "Server-side web workflows va traditional application backends.",
+    summary: "Xử lý web phía máy chủ và backend ứng dụng truyền thống.",
     tokens: ["php"],
   },
   {
     label: "FastAPI",
     category: "core",
     group: "backend",
-    summary: "High-performance Python APIs voi typed schemas.",
+    summary: "API Python hiệu năng cao với schema có kiểu.",
     tokens: ["fastapi"],
   },
   {
     label: "Django",
     category: "core",
     group: "backend",
-    summary: "Opinionated Python framework cho database-backed applications.",
+    summary: "Framework Python đầy đủ cho ứng dụng dựa trên database.",
     tokens: ["django"],
   },
   {
     label: "MongoDB",
     category: "core",
     group: "database",
-    summary: "Document database cho flexible schemas va content-heavy data.",
+    summary: "Database dạng document cho schema linh hoạt và dữ liệu nhiều nội dung.",
     tokens: ["mongodb", "mongoose"],
   },
   {
     label: "Docker",
     category: "tool",
     group: "platform",
-    summary: "Containerized delivery va reproducible runtime environments.",
+    summary: "Đóng gói container và môi trường chạy tái lập được.",
     tokens: ["docker", "dockerfile", "dockercompose"],
   },
   {
     label: "Vercel",
     category: "tool",
     group: "platform",
-    summary: "Deployment platform cho frontend va full-stack web apps.",
+    summary: "Nền tảng triển khai cho ứng dụng web frontend và full-stack.",
     tokens: ["vercel"],
   },
   {
     label: "Git",
     category: "tool",
     group: "tooling",
-    summary: "Version control de track thay doi va phoi hop code.",
+    summary: "Quản lý phiên bản để theo dõi thay đổi và phối hợp code.",
     tokens: ["git"],
   },
   {
     label: "GitHub Actions",
     category: "tool",
     group: "platform",
-    summary: "CI/CD pipelines cho automation, checks va releases.",
+    summary: "Pipeline CI/CD cho tự động hoá, kiểm tra và phát hành.",
     tokens: ["githubactions", "actions"],
   },
   {
     label: "VS Code",
     category: "tool",
     group: "tooling",
-    summary: "Editor workflow cho coding, debugging va daily iteration.",
+    summary: "Trình soạn thảo cho viết code, gỡ lỗi và làm việc hằng ngày.",
     tokens: ["vscode", "visualstudiocode"],
   },
   {
     label: "Windows",
     category: "tool",
     group: "platform",
-    summary: "Desktop development environment va local testing platform.",
+    summary: "Môi trường phát triển trên desktop và kiểm thử cục bộ.",
     tokens: ["windows", "windown"],
   },
   {
     label: "macOS",
     category: "tool",
     group: "platform",
-    summary: "Unix-based local environment cho product development.",
+    summary: "Môi trường cục bộ dựa trên Unix cho phát triển sản phẩm.",
     tokens: ["macos", "macosx", "osx"],
   },
   {
     label: "Linux",
     category: "tool",
     group: "platform",
-    summary: "Server-friendly environment cho deployment va tooling.",
+    summary: "Môi trường thân thiện máy chủ cho triển khai và công cụ.",
     tokens: ["linux", "ubuntu"],
   },
 ] as const;
@@ -264,12 +264,12 @@ const CORE_TECH_PRIORITY = [
 const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
   frontend: "Frontend",
   backend: "Backend",
-  database: "Database",
-  language: "Language",
-  platform: "Platform",
-  tooling: "Tooling",
-  workflow: "Workflow",
-  other: "Other",
+  database: "Cơ sở dữ liệu",
+  language: "Ngôn ngữ",
+  platform: "Nền tảng",
+  tooling: "Công cụ",
+  workflow: "Quy trình",
+  other: "Khác",
 };
 
 interface GitHubRepoResponse {
@@ -500,13 +500,13 @@ async function getGitHubSkillSnapshot(
         githubHref: repo.url,
         description:
           repo.description ||
-          `Project evidence tu GitHub cho ${techName.toLowerCase()}.`,
-        kindLabel: repo.homepageUrl ? "Production project" : "GitHub repo",
+          `Minh chứng từ GitHub cho ${techName.toLowerCase()}.`,
+        kindLabel: repo.homepageUrl ? "Dự án đã triển khai" : "Repo GitHub",
         isExternal: true,
         badges: buildGitHubEvidenceBadges(repo),
         supportingText: repo.homepageUrl
-          ? "Co deploy production hoac preview de xem nhanh."
-          : "Mo repo de xem implementation chi tiet.",
+          ? "Có bản triển khai hoặc preview để xem nhanh."
+          : "Mở repo để xem chi tiết cách triển khai.",
         updatedAt: repo.updatedAtValue,
         updatedAtLabel: repo.updatedAtLabel,
       });
@@ -516,11 +516,11 @@ async function getGitHubSkillSnapshot(
         const evidenceProjects = Array.from(existingEvidence.values());
         toolMap.set(techName, {
           name: techName,
-          category: "GitHub signal",
+          category: "Tín hiệu GitHub",
           usagePercent: null,
           usageText: null,
           projectCount: evidenceProjects.length,
-          detail: `${evidenceProjects.length} project signal co ${techName}`,
+          detail: `${evidenceProjects.length} dự án có dùng ${techName}`,
         });
       }
     });
@@ -529,7 +529,7 @@ async function getGitHubSkillSnapshot(
   if (repoAnalyses.length > 0) {
     toolMap.set("Git", {
       name: "Git",
-      category: "Source control",
+      category: "Quản lý mã nguồn",
       usagePercent: null,
       usageText: null,
       projectCount: repoAnalyses.length,
@@ -618,7 +618,7 @@ async function getProjectArchiveSkillSnapshot(): Promise<ProjectArchiveSkillSnap
         href: `/projects/${project.slug}`,
         githubHref: project.githubUrl?.trim() || null,
         description: project.shortDescription,
-        kindLabel: "Shared folder",
+        kindLabel: "Kho tài liệu",
         isExternal: false,
         badges: buildProjectArchiveBadges(project),
         supportingText: project.subjectName,
@@ -860,18 +860,18 @@ function buildToolsAndEnvironment({
   wakaRange?.editors.slice(0, 3).forEach((editor) => {
     merged.set(editor.name, {
       name: editor.name,
-      category: "Editor",
+      category: "Trình soạn thảo",
       usagePercent: editor.percent,
       usageText: editor.usageText,
       projectCount: 0,
-      detail: `${editor.percent}% thời gian tracked trong 30 ngày gần nhất`,
+      detail: `${editor.percent}% thời gian được ghi nhận trong 30 ngày gần nhất`,
     });
   });
 
   wakaRange?.operatingSystems.slice(0, 2).forEach((operatingSystem) => {
     merged.set(operatingSystem.name, {
       name: operatingSystem.name,
-      category: "Operating system",
+      category: "Hệ điều hành",
       usagePercent: operatingSystem.percent,
       usageText: operatingSystem.usageText,
       projectCount: 0,
@@ -902,7 +902,7 @@ function buildActivityInsights(
 
   return [
     {
-      label: "Coding trung bình",
+      label: "Thời gian code trung bình",
       value: formatSeconds(averagePerDaySeconds),
       description: "Mức trung bình mỗi ngày trong 7 ngày gần nhất.",
     },
@@ -912,10 +912,10 @@ function buildActivityInsights(
       description: "Số ngày có ghi nhận coding trong tuần gần nhất.",
     },
     {
-      label: "Top project tuần này",
+      label: "Dự án nhiều nhất tuần này",
       value: topProject?.name ?? "Chưa có dữ liệu",
       description: topProject
-        ? `${topProject.usageText} tracked trong 7 ngày qua.`
+        ? `${topProject.usageText} được ghi nhận trong 7 ngày qua.`
         : "WakaTime chưa trả về project nào trong tuần gần nhất.",
     },
   ];
@@ -936,14 +936,14 @@ function buildOverviewStats({
 }) {
   const stats: SkillsOverviewStat[] = [
     {
-      label: "Core stack hợp nhất",
+      label: "Công nghệ cốt lõi",
       value: String(coreTechCount),
-      description: "Số tech đang được tổng hợp từ GitHub, project evidence va WakaTime.",
+      description: "Số công nghệ được tổng hợp từ GitHub, kho tài liệu và WakaTime.",
     },
     {
-      label: "Soft skills thủ công",
+      label: "Kỹ năng mềm",
       value: String(softSkillsCount),
-      description: "Nhóm kỹ năng làm việc vẫn được giữ ở chế độ manual.",
+      description: "Nhóm kỹ năng làm việc được khai báo thủ công.",
     },
   ];
 
@@ -951,13 +951,13 @@ function buildOverviewStats({
     stats.unshift({
       label: "Repo GitHub đã phân tích",
       value: String(githubSnapshot.scannedRepoCount),
-      description: `Đang đọc các owner repo gần đây của ${githubSnapshot.username}.`,
+      description: `Đang đọc các repo gần đây của ${githubSnapshot.username}.`,
     });
   }
 
   if (wakatimeSnapshot) {
     stats.splice(1, 0, {
-      label: "Tracked time 30 ngày",
+      label: "Thời gian code 30 ngày",
       value: wakatimeSnapshot.lastThirtyDays.totalText,
       description: "Tổng thời gian coding WakaTime ghi nhận trong 30 ngày gần nhất.",
     });
@@ -965,9 +965,9 @@ function buildOverviewStats({
 
   if (projectSnapshot) {
     stats.push({
-      label: "Project archive mapped",
+      label: "Tài liệu được liên kết",
       value: String(projectSnapshot.scannedProjectCount),
-      description: "So project cong khai dang duoc link lai lam evidence trong Skills.",
+      description: "Số tài liệu công khai đang được dùng làm minh chứng cho kỹ năng.",
     });
   }
 
@@ -988,15 +988,17 @@ function buildGitHubState({
       label: "GitHub chưa kết nối",
       status: "needs-config",
       description:
-        "Thêm GITHUB_USERNAME hoặc cập nhật githubUrl trong profile admin để section này tự kéo repo.",
+        "Thêm GITHUB_USERNAME hoặc cập nhật link GitHub trong hồ sơ quản trị để phần này tự lấy repo.",
     };
   }
 
   if (error) {
+    // Raw error stays in server logs; it can leak internals and break layout
+    console.error("Skills source \"GitHub\" failed:", error);
     return {
       label: "GitHub đang lỗi",
       status: "error",
-      description: truncateText(error, 140),
+      description: "Chưa lấy được dữ liệu từ GitHub. Hệ thống sẽ thử lại ở lần tải sau.",
     };
   }
 
@@ -1004,14 +1006,14 @@ function buildGitHubState({
     return {
       label: "GitHub chưa có repo phù hợp",
       status: "empty",
-      description: `Không tìm thấy owner repo public nào để phân tích cho ${username}.`,
+      description: `Không tìm thấy repo công khai nào để phân tích cho ${username}.`,
     };
   }
 
   return {
     label: `GitHub: ${username}`,
     status: "ready",
-    description: `Đã phân tích ${snapshot.scannedRepoCount} repo gần đây để dựng core stack và project evidence.`,
+    description: `Đã phân tích ${snapshot.scannedRepoCount} repo gần đây để dựng danh sách công nghệ và minh chứng dự án.`,
   };
 }
 
@@ -1027,15 +1029,17 @@ function buildWakaTimeState({
       label: "WakaTime chưa kết nối",
       status: "needs-config",
       description:
-        "Thêm WAKATIME_API_KEY ở server để mở dữ liệu usage, tools và activity insight.",
+        "Thêm WAKATIME_API_KEY ở máy chủ để mở dữ liệu thời gian sử dụng, công cụ và nhịp làm việc.",
     };
   }
 
   if (error) {
+    // Raw error stays in server logs; it can leak internals and break layout
+    console.error("Skills source \"WakaTime\" failed:", error);
     return {
       label: "WakaTime đang lỗi",
       status: "error",
-      description: truncateText(error, 140),
+      description: "Chưa lấy được dữ liệu từ WakaTime. Hệ thống sẽ thử lại ở lần tải sau.",
     };
   }
 
@@ -1043,7 +1047,7 @@ function buildWakaTimeState({
     return {
       label: "WakaTime chưa có dữ liệu",
       status: "empty",
-      description: "Chưa nhận được coding summaries từ WakaTime.",
+      description: "Chưa nhận được dữ liệu tổng hợp từ WakaTime.",
     };
   }
 
@@ -1062,25 +1066,27 @@ function buildProjectState({
   error: string | null;
 }): SkillsSourceState {
   if (error) {
+    // Raw error stays in server logs; it can leak internals and break layout
+    console.error("Skills source \"Kho tài liệu\" failed:", error);
     return {
-      label: "Project archive dang loi",
+      label: "Kho tài liệu đang lỗi",
       status: "error",
-      description: truncateText(error, 140),
+      description: "Chưa đọc được dữ liệu kho tài liệu. Hệ thống sẽ thử lại ở lần tải sau.",
     };
   }
 
   if (!snapshot) {
     return {
-      label: "Project archive trong",
+      label: "Kho tài liệu trống",
       status: "empty",
-      description: "Chua co project cong khai nao de gan vao skill evidence.",
+      description: "Chưa có tài liệu công khai nào để làm minh chứng cho kỹ năng.",
     };
   }
 
   return {
-    label: "Project archive san sang",
+    label: "Kho tài liệu sẵn sàng",
     status: "ready",
-    description: `Da map ${snapshot.scannedProjectCount} project cong khai de giu duong dan vao archive du khong con o navbar.`,
+    description: `Đã liên kết ${snapshot.scannedProjectCount} tài liệu công khai làm minh chứng cho kỹ năng.`,
   };
 }
 
@@ -1160,11 +1166,11 @@ function buildGitHubEvidenceBadges(repo: {
   const badges = new Set<string>();
 
   if (repo.homepageUrl) {
-    badges.add("Production");
+    badges.add("Đã triển khai");
   }
 
   if (isRecentDate(repo.updatedAtValue)) {
-    badges.add("Recent");
+    badges.add("Mới cập nhật");
   }
 
   if (repo.primaryLanguage) {
@@ -1175,10 +1181,10 @@ function buildGitHubEvidenceBadges(repo: {
 }
 
 function buildProjectArchiveBadges(project: ProjectArchiveRow) {
-  const badges = new Set<string>(["Archive"]);
+  const badges = new Set<string>(["Kho tài liệu"]);
 
   if (project.demoUrl?.trim()) {
-    badges.add("Live demo");
+    badges.add("Có demo");
   }
 
   if (project.githubUrl?.trim()) {
@@ -1186,7 +1192,7 @@ function buildProjectArchiveBadges(project: ProjectArchiveRow) {
   }
 
   if (isRecentDate(project.createdAt)) {
-    badges.add("Recent");
+    badges.add("Mới cập nhật");
   }
 
   return Array.from(badges);
@@ -1477,7 +1483,7 @@ function getSkillCategory(techName: string): SkillCategory {
 function getSkillSummary(techName: string) {
   return (
     TECH_DEFINITIONS.find((definition) => definition.label === techName)?.summary ??
-    "Project-backed skill signal duoc tong hop tu code, telemetry va archive."
+    "Kỹ năng được tổng hợp từ mã nguồn, dữ liệu sử dụng và kho tài liệu."
   );
 }
 
@@ -1546,9 +1552,6 @@ function formatSeconds(totalSeconds: number) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unknown error";
+  return error instanceof Error ? error.message : "Lỗi không xác định";
 }
 
-function truncateText(value: string, maxLength: number) {
-  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`;
-}

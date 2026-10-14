@@ -2,32 +2,42 @@
 
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { Download, Eye, FolderPlus, PencilLine } from "lucide-react";
 import { requireAuth } from "@/lib/auth/check-auth";
 import { getUserProjects } from "@/actions/projects";
 import { formatFileSize } from "@/lib/projects/archive";
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  EmptyState,
+  PageHeader,
+  type BadgeTone,
+} from "@/components/ui";
 
-function getVisibilityClasses(visibility: string) {
-  switch (visibility) {
-    case "PUBLIC":
-      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100";
-    case "SHARED":
-      return "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-100";
-    default:
-      return "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-100";
-  }
+const STATUS_BADGES: Record<string, { label: string; tone: BadgeTone }> = {
+  PUBLISHED: { label: "Công khai", tone: "success" },
+  DRAFT: { label: "Nháp", tone: "neutral" },
+  ARCHIVED: { label: "Lưu trữ", tone: "warn" },
+};
+
+const VISIBILITY_BADGES: Record<string, { label: string; tone: BadgeTone }> = {
+  PUBLIC: { label: "Ai cũng xem được", tone: "accent" },
+  SHARED: { label: "Chia sẻ", tone: "warn" },
+  PRIVATE: { label: "Riêng tư", tone: "neutral" },
+};
+
+function getStatusBadge(status: string) {
+  return STATUS_BADGES[status] ?? { label: status, tone: "neutral" as const };
 }
 
-function getStatusClasses(status: string) {
-  switch (status) {
-    case "PUBLISHED":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-100";
-    case "ARCHIVED":
-      return "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-950/40 dark:text-fuchsia-100";
-    default:
-      return "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-100";
-  }
+function getVisibilityBadge(visibility: string) {
+  return (
+    VISIBILITY_BADGES[visibility] ?? {
+      label: visibility,
+      tone: "neutral" as const,
+    }
+  );
 }
 
 export default async function ProjectsPage() {
@@ -48,18 +58,18 @@ export default async function ProjectsPage() {
 
   const summaryCards = [
     {
-      label: "Tổng folder",
-      value: totalProjects,
-      detail: "Danh sách hiện tại bạn có thể quản lý.",
+      label: "Tổng số tài liệu",
+      value: totalProjects.toLocaleString("vi-VN"),
+      detail: "Tài liệu bạn đang có thể quản lý.",
     },
     {
-      label: "Đã có archive",
-      value: readyArchives,
+      label: "Đã có file ZIP",
+      value: readyArchives.toLocaleString("vi-VN"),
       detail: "Sẵn sàng để tải xuống hoặc đối chiếu.",
     },
     {
-      label: "Đang public",
-      value: publicProjects,
+      label: "Ai cũng xem được",
+      value: publicProjects.toLocaleString("vi-VN"),
       detail: "Đang hiển thị trên trang công khai.",
     },
     {
@@ -69,180 +79,251 @@ export default async function ProjectsPage() {
     },
   ];
 
+  const rows = projects.map((project) => {
+    const latestFile = project.files[0] ?? null;
+
+    return {
+      project,
+      latestFile,
+      status: getStatusBadge(project.status),
+      visibility: getVisibilityBadge(project.visibility),
+      access:
+        project.authorId === user.id
+          ? "Bạn là chủ sở hữu"
+          : user.role === "admin"
+            ? `Quyền admin · Chủ sở hữu: ${project.author.email}`
+            : "Được chia sẻ quyền chỉnh sửa",
+      archive: latestFile
+        ? `${latestFile.fileName} · ${formatFileSize(latestFile.sizeBytes)}`
+        : "Chưa có file ZIP",
+      downloads: `${project.downloadCount.toLocaleString("vi-VN")} lượt tải`,
+    };
+  });
+
   return (
     <div className="space-y-8">
-      <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 md:p-8">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
-              <FolderPlus size={14} />
-              Project manager
-            </div>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-              Folder management
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-              Theo dõi owner, file archive, visibility và trạng thái của từng
-              folder để biết mục nào đã sẵn sàng cho người dùng.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
+      <PageHeader
+        title="Kho tài liệu"
+        description="Theo dõi chủ sở hữu, file ZIP, quyền hiển thị và trạng thái của từng tài liệu để biết mục nào đã sẵn sàng cho người dùng."
+        actions={
+          <>
             {isAdmin && (
-              <Link href="/dashboard/projects/new" className="btn-primary">
-                <FolderPlus size={16} />
-                Tạo folder mới
-              </Link>
+              <ButtonLink
+                href="/dashboard/projects/new"
+                leftIcon={<FolderPlus size={16} aria-hidden="true" />}
+              >
+                Thêm tài liệu
+              </ButtonLink>
             )}
-            <Link href="/projects" className="btn-secondary">
-              <Eye size={16} />
-              Xem trang public
-            </Link>
-          </div>
-        </div>
-      </section>
+            <ButtonLink
+              href="/projects"
+              variant="secondary"
+              leftIcon={<Eye size={16} aria-hidden="true" />}
+            >
+              Xem trang công khai
+            </ButtonLink>
+          </>
+        }
+      />
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-4">
-        {summaryCards.map((card) => (
-          <article
-            key={card.label}
-            className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/85"
-          >
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-              {card.label}
-            </p>
-            <p className="mt-3 text-4xl font-bold tracking-tight text-slate-950 dark:text-white">
-              {card.value}
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              {card.detail}
-            </p>
-          </article>
-        ))}
+      <section aria-labelledby="summary-heading">
+        <h2 id="summary-heading" className="sr-only">
+          Số liệu kho tài liệu
+        </h2>
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {summaryCards.map((card) => (
+            <Card as="li" key={card.label} padding="sm">
+              <p className="text-sm font-medium text-muted">{card.label}</p>
+              <p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-ink">
+                {card.value}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted">{card.detail}</p>
+            </Card>
+          ))}
+        </ul>
       </section>
 
       {projects.length > 0 ? (
-        <section className="space-y-5">
-          {projects.map((project) => {
-            const latestFile = project.files[0] ?? null;
+        <section aria-labelledby="list-heading" className="space-y-4">
+          <h2 id="list-heading" className="text-lg font-semibold text-ink">
+            Danh sách tài liệu
+          </h2>
 
-            return (
-              <article
-                key={project.id}
-                className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm transition-colors hover:border-blue-200 dark:border-slate-800 dark:bg-slate-900/85 dark:hover:border-blue-900 md:p-7"
-              >
-                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-                        {project.title}
-                      </h3>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getVisibilityClasses(project.visibility)}`}
-                      >
-                        {project.visibility}
-                      </span>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}
-                      >
-                        {project.status}
-                      </span>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-600 dark:text-slate-300 md:grid-cols-3">
-                      <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-500">
-                          Môn học • Kỳ học
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
-                          {project.subjectName} • {project.semester}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-500">
-                          Quyền truy cập
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
-                          {project.authorId === user.id
-                            ? "Owner access"
-                            : user.role === "admin"
-                              ? `Admin access • Owner: ${project.author.email}`
-                              : "Shared editor access"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-500">
-                          Archive
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
-                          {latestFile
-                            ? `${latestFile.fileName} • ${formatFileSize(latestFile.sizeBytes)}`
-                            : "Chưa có file ZIP"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {project.downloadCount.toLocaleString("vi-VN")} lượt tải
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-                      {project.shortDescription}
-                    </p>
-                  </div>
-
-                  <div className="xl:w-72">
-                    <div className="rounded-[26px] border border-slate-200 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-950/60">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">
-                        Hành động nhanh
+          {/* Desktop: table */}
+          <Card padding="none" className="hidden overflow-x-auto lg:block">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-line bg-sunken text-muted">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    Tài liệu
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    Trạng thái
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    File ZIP
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    Quyền truy cập
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">
+                    Hành động
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {rows.map((row) => (
+                  <tr key={row.project.id} className="align-top">
+                    <td className="max-w-sm px-4 py-4">
+                      <p className="break-words font-semibold text-ink">
+                        {row.project.title}
                       </p>
-                      <div className="mt-4 flex flex-col gap-3">
-                        <Link
-                          href={`/dashboard/projects/${project.id}/edit`}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                        >
-                          <PencilLine size={16} />
-                          Mở chỉnh sửa
-                        </Link>
-                        {latestFile && (
-                          <Link
-                            href={`/api/projects/${project.id}/download`}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
-                          >
-                            <Download size={16} />
-                            Tải archive
-                          </Link>
-                        )}
-                        <Link
-                          href={`/projects/${project.slug}`}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100 dark:hover:bg-blue-950/70"
-                        >
-                          <Eye size={16} />
-                          Xem trang public
-                        </Link>
+                      <p className="mt-1 text-muted">
+                        {row.project.subjectName} · {row.project.semester}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-muted">
+                        {row.project.shortDescription}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <Badge tone={row.status.tone}>{row.status.label}</Badge>
+                        <Badge tone={row.visibility.tone}>
+                          {row.visibility.label}
+                        </Badge>
                       </div>
-                    </div>
-                  </div>
+                    </td>
+                    <td className="max-w-56 px-4 py-4">
+                      <p className="break-words text-ink">{row.archive}</p>
+                      <p className="mt-1 tabular-nums text-muted">
+                        {row.downloads}
+                      </p>
+                    </td>
+                    <td className="max-w-56 px-4 py-4">
+                      <p className="break-words text-muted">{row.access}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <RowActions
+                        projectId={row.project.id}
+                        slug={row.project.slug}
+                        title={row.project.title}
+                        hasArchive={Boolean(row.latestFile)}
+                        className="justify-end"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          {/* Mobile/tablet: stacked cards */}
+          <ul className="space-y-4 lg:hidden">
+            {rows.map((row) => (
+              <Card as="li" key={row.project.id} padding="sm">
+                <h3 className="break-words text-base font-semibold text-ink">
+                  {row.project.title}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Badge tone={row.status.tone}>{row.status.label}</Badge>
+                  <Badge tone={row.visibility.tone}>{row.visibility.label}</Badge>
                 </div>
-              </article>
-            );
-          })}
+                <p className="mt-3 text-sm leading-6 text-muted">
+                  {row.project.shortDescription}
+                </p>
+                <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <dt className="text-muted">Môn học · Kỳ học</dt>
+                    <dd className="break-words text-ink">
+                      {row.project.subjectName} · {row.project.semester}
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-muted">File ZIP</dt>
+                    <dd className="break-words text-ink">
+                      {row.archive}{" "}
+                      <span className="text-muted">({row.downloads})</span>
+                    </dd>
+                  </div>
+                  <div className="min-w-0 sm:col-span-2">
+                    <dt className="text-muted">Quyền truy cập</dt>
+                    <dd className="break-words text-ink">{row.access}</dd>
+                  </div>
+                </dl>
+                <RowActions
+                  projectId={row.project.id}
+                  slug={row.project.slug}
+                  title={row.project.title}
+                  hasArchive={Boolean(row.latestFile)}
+                  className="mt-4 border-t border-line pt-4"
+                />
+              </Card>
+            ))}
+          </ul>
         </section>
       ) : (
-        <section className="rounded-[30px] border border-dashed border-slate-300 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-900/85">
-          <p className="text-lg font-medium text-slate-700 dark:text-slate-200">
-            Chưa có thư mục chia sẻ nào được tạo.
-          </p>
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            Bắt đầu bằng cách tạo folder mới, tải archive lên và kiểm tra lại
-            trang public.
-          </p>
-          {isAdmin && (
-            <Link href="/dashboard/projects/new" className="btn-primary mt-6">
-              Tạo folder đầu tiên
-            </Link>
-          )}
-        </section>
+        <EmptyState
+          title="Chưa có tài liệu nào"
+          description="Bắt đầu bằng cách thêm tài liệu mới, tải thư mục lên và kiểm tra lại trang công khai."
+          action={
+            isAdmin ? (
+              <ButtonLink
+                href="/dashboard/projects/new"
+                leftIcon={<FolderPlus size={16} aria-hidden="true" />}
+              >
+                Thêm tài liệu đầu tiên
+              </ButtonLink>
+            ) : null
+          }
+        />
       )}
+    </div>
+  );
+}
+
+function RowActions({
+  projectId,
+  slug,
+  title,
+  hasArchive,
+  className = "",
+}: {
+  projectId: string;
+  slug: string;
+  title: string;
+  hasArchive: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-wrap gap-2 ${className}`}>
+      <ButtonLink
+        href={`/dashboard/projects/${projectId}/edit`}
+        size="sm"
+        leftIcon={<PencilLine size={16} aria-hidden="true" />}
+      >
+        Chỉnh sửa
+        <span className="sr-only">: {title}</span>
+      </ButtonLink>
+      {hasArchive && (
+        <ButtonLink
+          href={`/api/projects/${projectId}/download`}
+          variant="secondary"
+          size="sm"
+          leftIcon={<Download size={16} aria-hidden="true" />}
+        >
+          Tải ZIP
+          <span className="sr-only">: {title}</span>
+        </ButtonLink>
+      )}
+      <ButtonLink
+        href={`/projects/${slug}`}
+        variant="ghost"
+        size="sm"
+        leftIcon={<Eye size={16} aria-hidden="true" />}
+      >
+        Xem công khai
+        <span className="sr-only">: {title}</span>
+      </ButtonLink>
     </div>
   );
 }

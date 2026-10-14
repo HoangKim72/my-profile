@@ -1,12 +1,173 @@
 @import "tailwindcss";
 
+/* Dark mode follows the data-theme attribute set by the inline script in
+   app/layout.tsx (Sáng / Tối / Theo hệ thống), not the media query directly.
+   Every existing `dark:` utility keeps working. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   Site: canvas/surface/sunken, ink/muted, line/line-strong, one accent,
+   success/warn/danger (+ -soft). Mic tool keeps its own --mic-* set.
+   --------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --sunken: #f4f5f7;
+  --line: #e4e7ec;
+  --line-strong: #c9cfd8;
+  --ink: #0f172a;
+  --muted: #475569; /* slate-600: 7.5:1 on surface */
+  --accent: #2457d6;
+  --accent-hover: #1d47b3;
+  --on-accent: #ffffff;
+  --accent-soft: #e7eefc;
+  --success: #17803d;
+  --success-soft: #e3f5e9;
+  --warn: #a35505;
+  --warn-soft: #fdf0dc;
+  --danger: #c0391b;
+  --danger-hover: #a12f15;
+  --on-danger: #ffffff;
+  --danger-soft: #fde8e2;
+
+  /* Legacy aliases (kept so older code reading them still works) */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+
+  --font-sans-local:
+    var(--font-be-vietnam), "Segoe UI Variable Text", "Segoe UI", "Noto Sans",
+    system-ui, sans-serif;
+  --font-mono-local:
+    var(--font-jetbrains), "Cascadia Code", "SFMono-Regular", Consolas,
+    monospace;
+
+  /* Mic tool palette: plain surfaces, near-black text, one colour per job
+     (morn = soạn mic sáng, noon = thu/phát/thay pin, done = kết ca) */
+  --mic-canvas: #f3f5f8;
+  --mic-surface: #ffffff;
+  --mic-sunken: #f5f7fa;
+  --mic-line: #e1e5eb;
+  --mic-line-strong: #c3cad4;
+  --mic-ink: #141a22;
+  --mic-muted: #525c69;
+  --mic-primary: #2457d6;
+  --mic-on-primary: #ffffff;
+  --mic-morn: #2457d6;
+  --mic-morn-soft: #e7eefc;
+  --mic-noon: #b45f06;
+  --mic-noon-soft: #fdf0dc;
+  --mic-done: #17803d;
+  --mic-done-soft: #e3f5e9;
+  --mic-on-done: #ffffff;
+  --mic-thu-soft: #eef1f4;
+  --mic-danger: #c0391b;
+  --mic-danger-soft: #fde8e2;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0b0d10;
+  --surface: #14181e;
+  --sunken: #1a1f27;
+  --line: #262d37;
+  --line-strong: #3f4855;
+  --ink: #eef1f5;
+  --muted: #a8b0bc;
+  --accent: #7aa5ff;
+  --accent-hover: #9cbcff;
+  --on-accent: #0b1530;
+  --accent-soft: #1a2742;
+  --success: #4ade80;
+  --success-soft: #12301d;
+  --warn: #f5a524;
+  --warn-soft: #33260f;
+  --danger: #ff8a70;
+  --danger-hover: #ffa48f;
+  --on-danger: #2a0d06;
+  --danger-soft: #3d1a12;
+
+  --mic-canvas: #0e1116;
+  --mic-surface: #171b22;
+  --mic-sunken: #1b2028;
+  --mic-line: #2a313c;
+  --mic-line-strong: #46505e;
+  --mic-ink: #eef1f5;
+  --mic-muted: #a8b0bc;
+  --mic-primary: #7aa5ff;
+  --mic-on-primary: #0b1530;
+  --mic-morn: #7aa5ff;
+  --mic-morn-soft: #1a2742;
+  --mic-noon: #f5a524;
+  --mic-noon-soft: #33260f;
+  --mic-done: #4ade80;
+  --mic-done-soft: #12301d;
+  --mic-on-done: #062012;
+  --mic-thu-soft: #232934;
+  --mic-danger: #ff8a70;
+  --mic-danger-soft: #3d1a12;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-on-danger: var(--on-danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-mic-canvas: var(--mic-canvas);
+  --color-mic-surface: var(--mic-surface);
+  --color-mic-sunken: var(--mic-sunken);
+  --color-mic-line: var(--mic-line);
+  --color-mic-line-strong: var(--mic-line-strong);
+  --color-mic-ink: var(--mic-ink);
+  --color-mic-muted: var(--mic-muted);
+  --color-mic-primary: var(--mic-primary);
+  --color-mic-on-primary: var(--mic-on-primary);
+  --color-mic-morn: var(--mic-morn);
+  --color-mic-morn-soft: var(--mic-morn-soft);
+  --color-mic-noon: var(--mic-noon);
+  --color-mic-noon-soft: var(--mic-noon-soft);
+  --color-mic-done: var(--mic-done);
+  --color-mic-done-soft: var(--mic-done-soft);
+  --color-mic-on-done: var(--mic-on-done);
+  --color-mic-thu-soft: var(--mic-thu-soft);
+  --color-mic-danger: var(--mic-danger);
+  --color-mic-danger-soft: var(--mic-danger-soft);
+
+  --font-sans: var(--font-sans-local);
+  --font-mono: var(--font-mono-local);
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-white dark:bg-black text-gray-950 dark:text-gray-50 transition-colors;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans-local);
   }
 
   a {
@@ -16,27 +177,28 @@
 
 @layer components {
   .container-custom {
-    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 active:scale-95;
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent bg-accent px-4 py-2 font-medium text-on-accent transition-colors duration-150 hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600;
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line-strong bg-surface px-4 py-2 font-medium text-ink transition-colors duration-150 hover:border-ink/40 hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800;
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 font-medium text-muted transition-colors duration-150 hover:bg-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .card {
-    @apply bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow;
+    @apply rounded-xl border border-line bg-surface transition-colors duration-150 hover:border-line-strong;
   }
 
+  /* Being phased out: renders as plain ink text */
   .text-gradient {
-    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+    @apply text-ink;
   }
 
   .fade-in {
@@ -70,89 +232,25 @@
   }
 }
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --font-sans-local:
-    "Segoe UI Variable Text", "Aptos", "Trebuchet MS", "Segoe UI",
-    "Noto Sans", sans-serif;
-  --font-mono-local:
-    "Cascadia Code", "Aptos Mono", "JetBrains Mono", "SFMono-Regular",
-    Consolas, monospace;
-
-  /* Mic tool palette: plain surfaces, near-black text, one colour per job
-     (morn = soạn mic sáng, noon = thu/phát/thay pin, done = kết ca) */
-  --mic-canvas: #f3f5f8;
-  --mic-surface: #ffffff;
-  --mic-sunken: #f5f7fa;
-  --mic-line: #e1e5eb;
-  --mic-line-strong: #c3cad4;
-  --mic-ink: #141a22;
-  --mic-muted: #525c69;
-  --mic-primary: #2457d6;
-  --mic-on-primary: #ffffff;
-  --mic-morn: #2457d6;
-  --mic-morn-soft: #e7eefc;
-  --mic-noon: #b45f06;
-  --mic-noon-soft: #fdf0dc;
-  --mic-done: #17803d;
-  --mic-done-soft: #e3f5e9;
-  --mic-on-done: #ffffff;
-  --mic-thu-soft: #eef1f4;
-  --mic-danger: #c0391b;
-  --mic-danger-soft: #fde8e2;
+/* Keyboard focus ring. Unlayered on purpose so it wins over legacy
+   `focus:outline-none` utilities still present in older components. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-mic-canvas: var(--mic-canvas);
-  --color-mic-surface: var(--mic-surface);
-  --color-mic-sunken: var(--mic-sunken);
-  --color-mic-line: var(--mic-line);
-  --color-mic-line-strong: var(--mic-line-strong);
-  --color-mic-ink: var(--mic-ink);
-  --color-mic-muted: var(--mic-muted);
-  --color-mic-primary: var(--mic-primary);
-  --color-mic-on-primary: var(--mic-on-primary);
-  --color-mic-morn: var(--mic-morn);
-  --color-mic-morn-soft: var(--mic-morn-soft);
-  --color-mic-noon: var(--mic-noon);
-  --color-mic-noon-soft: var(--mic-noon-soft);
-  --color-mic-done: var(--mic-done);
-  --color-mic-done-soft: var(--mic-done-soft);
-  --color-mic-on-done: var(--mic-on-done);
-  --color-mic-thu-soft: var(--mic-thu-soft);
-  --color-mic-danger: var(--mic-danger);
-  --color-mic-danger-soft: var(--mic-danger-soft);
-  --font-sans: var(--font-sans-local);
-  --font-mono: var(--font-mono-local);
-}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-
-    --mic-canvas: #0e1116;
-    --mic-surface: #171b22;
-    --mic-sunken: #1b2028;
-    --mic-line: #2a313c;
-    --mic-line-strong: #46505e;
-    --mic-ink: #eef1f5;
-    --mic-muted: #a8b0bc;
-    --mic-primary: #7aa5ff;
-    --mic-on-primary: #0b1530;
-    --mic-morn: #7aa5ff;
-    --mic-morn-soft: #1a2742;
-    --mic-noon: #f5a524;
-    --mic-noon-soft: #33260f;
-    --mic-done: #4ade80;
-    --mic-done-soft: #12301d;
-    --mic-on-done: #062012;
-    --mic-thu-soft: #232934;
-    --mic-danger: #ff8a70;
-    --mic-danger-soft: #3d1a12;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -179,10 +277,4 @@
     size: A4;
     margin: 16mm;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans-local);
 }

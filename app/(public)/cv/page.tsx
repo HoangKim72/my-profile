@@ -5,8 +5,8 @@ import { getSiteProfile } from "@/lib/profile/site-profile";
 import { buildResumeViewModel } from "@/lib/profile/resume-view";
 
 export const metadata: Metadata = {
-  title: "CV / Resume",
-  description: "CV cong khai dong bo voi profile admin",
+  title: "CV",
+  description: "CV công khai, đồng bộ với hồ sơ quản trị.",
 };
 
 export const dynamic = "force-dynamic";

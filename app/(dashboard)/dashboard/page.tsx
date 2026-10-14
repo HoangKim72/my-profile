@@ -5,20 +5,50 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { PermissionType, type Prisma } from "@prisma/client";
 import {
-  ArrowRight,
+  ChevronRight,
   Eye,
   FileArchive,
   FolderKanban,
+  FolderPlus,
+  Globe,
   MessageSquareText,
+  PencilLine,
   Settings2,
-  ShieldCheck,
+  UserRound,
   UsersRound,
+  type LucideIcon,
 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/check-auth";
 import { prisma } from "@/lib/db/prisma";
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  EmptyState,
+  PageHeader,
+  type BadgeTone,
+} from "@/components/ui";
+
+const STATUS_BADGES: Record<string, { label: string; tone: BadgeTone }> = {
+  PUBLISHED: { label: "Công khai", tone: "success" },
+  DRAFT: { label: "Nháp", tone: "neutral" },
+  ARCHIVED: { label: "Lưu trữ", tone: "warn" },
+};
+
+const VISIBILITY_LABELS: Record<string, string> = {
+  PRIVATE: "Riêng tư",
+  SHARED: "Chia sẻ",
+};
+
+const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
 
 export default async function DashboardPage() {
   const user = await requireAuth();
+  const isAdmin = user.role === "admin";
 
   const accessibleProjectWhere: Prisma.ProjectWhereInput =
     user.role === "admin"
@@ -90,285 +120,291 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const stats = [
+  const stats: Array<{
+    label: string;
+    value: number;
+    detail: string;
+    icon: LucideIcon;
+  }> = [
     {
-      label:
-        user.role === "admin" ? "Tong folder quan ly" : "Folder co the sua",
+      label: isAdmin ? "Tổng số tài liệu" : "Tài liệu bạn có thể sửa",
       value: projectCount,
-      detail:
-        user.role === "admin"
-          ? "Bao gom tat ca folder trong he thong."
-          : "Folder cua ban va folder duoc cap quyen EDIT.",
+      detail: isAdmin
+        ? "Tất cả tài liệu trong hệ thống."
+        : "Tài liệu của bạn và tài liệu được cấp quyền chỉnh sửa.",
       icon: FolderKanban,
-      accent: "from-blue-600 to-cyan-400",
-      surface:
-        "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-100",
     },
     {
-      label: "Folder da san sang",
+      label: "Đã có file ZIP",
       value: archiveCount,
-      detail: "Da co file ZIP de nguoi dung tai xuong.",
+      detail: "Sẵn sàng để người dùng tải xuống.",
       icon: FileArchive,
-      accent: "from-emerald-600 to-teal-400",
-      surface:
-        "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100",
     },
     {
-      label: "Folder dang public",
+      label: "Đang công khai",
       value: publishedCount,
-      detail: "Dang duoc cong khai tren website.",
+      detail: "Đang hiển thị trên website.",
       icon: Eye,
-      accent: "from-fuchsia-600 to-pink-400",
-      surface:
-        "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-100",
     },
     {
-      label: "Thong tin he thong",
-      value: user.role === "admin" ? userCount : messageCount,
-      detail:
-        user.role === "admin"
-          ? "So user dang ton tai trong he thong."
-          : "Tong so contact message da nhan.",
-      icon: user.role === "admin" ? UsersRound : MessageSquareText,
-      accent: "from-slate-700 to-slate-500",
-      surface:
-        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100",
+      label: isAdmin ? "Người dùng" : "Tin nhắn liên hệ",
+      value: isAdmin ? userCount : messageCount,
+      detail: isAdmin
+        ? "Số tài khoản đang có trong hệ thống."
+        : "Tổng số tin nhắn liên hệ đã nhận.",
+      icon: isAdmin ? UsersRound : MessageSquareText,
     },
   ];
 
-  const quickActions = [
+  const quickActions: Array<{
+    title: string;
+    description: string;
+    href: string;
+    icon: LucideIcon;
+  }> = [
+    ...(isAdmin
+      ? [
+          {
+            title: "Thêm tài liệu",
+            description: "Tạo tài liệu mới và tải thư mục lên dưới dạng ZIP.",
+            href: "/dashboard/projects/new",
+            icon: FolderPlus,
+          },
+        ]
+      : []),
     {
-      title: "Quan ly folder",
-      description:
-        "Xem trang thai archive, owner va mo man hinh chinh sua nhanh.",
+      title: "Quản lý kho tài liệu",
+      description: "Xem trạng thái, file ZIP và mở chỉnh sửa nhanh.",
       href: "/dashboard/projects",
       icon: FolderKanban,
     },
+    ...(isAdmin
+      ? [
+          {
+            title: "Cập nhật hồ sơ công khai",
+            description:
+              "Chỉnh trang Giới thiệu, CV, ảnh đại diện và kênh liên hệ.",
+            href: "/dashboard/settings",
+            icon: Settings2,
+          },
+        ]
+      : []),
     {
-      title: "Cap nhat profile cong khai",
-      description: "Dieu chinh About, CV, avatar va cac kenh lien he.",
-      href: "/dashboard/settings",
-      icon: Settings2,
+      title: "Xem trang Giới thiệu",
+      description: "Đối chiếu nội dung công khai sau khi cập nhật.",
+      href: "/about",
+      icon: UserRound,
     },
     {
-      title: "Kiem tra trang cong khai",
-      description: "Mo trang public de doi chieu noi dung sau khi cap nhat.",
-      href: "/about",
-      icon: ShieldCheck,
+      title: "Xem kho tài liệu công khai",
+      description: "Kiểm tra danh sách mà người dùng đang thấy.",
+      href: "/projects",
+      icon: Globe,
     },
   ];
 
   return (
     <div className="space-y-8">
-      <section className="overflow-hidden rounded-[32px] border border-blue-100 bg-[linear-gradient(135deg,rgba(37,99,235,0.1),rgba(14,165,233,0.06)_45%,rgba(255,255,255,0.94))] p-6 shadow-[0_30px_80px_-40px_rgba(37,99,235,0.45)] dark:border-blue-950/60 dark:bg-[linear-gradient(135deg,rgba(37,99,235,0.22),rgba(15,23,42,0.92)_46%,rgba(2,6,23,0.96))] md:p-8">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-900 dark:bg-slate-950/60 dark:text-blue-200">
-              <ShieldCheck size={14} />
-              Workspace overview
-            </div>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white md:text-4xl">
-              {user.profile?.fullName || user.email}, day la trung tam dieu hanh
-              cua ban
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-              Tu day ban co the quan ly folder chia se, cap nhat profile cong
-              khai va nhanh chong nhin thay muc nao da san sang cho production.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3 xl:w-[520px]">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
-
-              return (
-                <Link
-                  key={action.href}
-                  href={action.href}
-                  className="rounded-[24px] border border-white/80 bg-white/85 p-4 transition-all hover:-translate-y-1 hover:border-blue-200 dark:border-white/10 dark:bg-slate-950/75 dark:hover:border-blue-900"
-                >
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
-                    <Icon size={18} />
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold text-slate-950 dark:text-white">
-                    {action.title}
-                  </h3>
-                  <p className="mt-2 text-xs leading-6 text-slate-600 dark:text-slate-400">
-                    {action.description}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-
-          return (
-            <article
-              key={stat.label}
-              className="overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/85"
+      <PageHeader
+        title="Tổng quan"
+        description={`Xin chào ${user.profile?.fullName || user.email}. Theo dõi kho tài liệu và hồ sơ công khai của bạn tại đây.`}
+        actions={
+          isAdmin ? (
+            <ButtonLink
+              href="/dashboard/projects/new"
+              leftIcon={<FolderPlus size={16} aria-hidden="true" />}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-                    {stat.label}
-                  </p>
-                  <p className="mt-3 text-4xl font-bold tracking-tight text-slate-950 dark:text-white">
-                    {stat.value}
-                  </p>
+              Thêm tài liệu
+            </ButtonLink>
+          ) : null
+        }
+      />
+
+      <section aria-labelledby="stats-heading">
+        <h2 id="stats-heading" className="sr-only">
+          Số liệu
+        </h2>
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+
+            return (
+              <Card as="li" key={stat.label} padding="sm">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium text-muted">{stat.label}</p>
+                  <span
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"
+                    aria-hidden="true"
+                  >
+                    <Icon size={18} />
+                  </span>
                 </div>
-                <span
-                  className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.accent} text-white shadow-lg`}
-                >
-                  <Icon size={20} />
-                </span>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {stat.detail}
-              </p>
-              <div
-                className={`mt-5 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${stat.surface}`}
-              >
-                Cap nhat theo du lieu thuc
-              </div>
-            </article>
-          );
-        })}
+                <p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-ink">
+                  {stat.value.toLocaleString("vi-VN")}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  {stat.detail}
+                </p>
+              </Card>
+            );
+          })}
+        </ul>
       </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 md:p-7">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-                Folder vua cap nhat
-              </h3>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                Nhung muc nen kiem tra lai truoc khi cong khai hoac gui cho nguoi
-                dung.
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card
+          as="section"
+          aria-labelledby="recent-heading"
+          className="min-w-0 lg:col-span-2"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 id="recent-heading" className="text-lg font-semibold text-ink">
+                Tài liệu vừa cập nhật
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                Nên kiểm tra lại trước khi công khai hoặc gửi cho người dùng.
               </p>
             </div>
-            <Link href="/dashboard/projects" className="btn-secondary">
-              Xem tat ca
-            </Link>
+            <ButtonLink href="/dashboard/projects" variant="secondary" size="sm">
+              Xem tất cả
+            </ButtonLink>
           </div>
 
-          <div className="mt-6 space-y-4">
-            {recentProjects.length > 0 ? (
-              recentProjects.map((project) => (
-                <div
-                  key={project.id}
-                  className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 transition-colors hover:border-blue-200 dark:border-slate-800 dark:bg-slate-950/60 dark:hover:border-blue-900"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          {recentProjects.length > 0 ? (
+            <ul className="mt-5 divide-y divide-line border-t border-line">
+              {recentProjects.map((project) => {
+                const status = STATUS_BADGES[project.status] ?? {
+                  label: project.status,
+                  tone: "neutral" as const,
+                };
+                const visibilityLabel = VISIBILITY_LABELS[project.visibility];
+                const hasArchive = project.files.length > 0;
+
+                return (
+                  <li
+                    key={project.id}
+                    className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="truncate text-lg font-semibold text-slate-950 dark:text-white">
+                        <h3 className="min-w-0 break-words text-base font-semibold text-ink">
                           {project.title}
-                        </h4>
-                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-100">
-                          {project.visibility}
-                        </span>
-                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">
-                          {project.status}
-                        </span>
+                        </h3>
+                        <Badge tone={status.tone}>{status.label}</Badge>
+                        {visibilityLabel ? (
+                          <Badge tone="neutral">{visibilityLabel}</Badge>
+                        ) : null}
+                        <Badge tone={hasArchive ? "accent" : "warn"}>
+                          {hasArchive ? "Có file ZIP" : "Chưa có file ZIP"}
+                        </Badge>
                       </div>
-                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                      <p className="mt-1 break-words text-sm text-muted">
                         {project.authorId === user.id
-                          ? "Ban la owner cua folder nay."
-                          : `Owner hien tai: ${project.author.email}`}
-                      </p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-500">
-                        Cap nhat lan cuoi:{" "}
-                        {new Intl.DateTimeFormat("vi-VN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        }).format(project.updatedAt)}
+                          ? "Bạn là chủ sở hữu"
+                          : `Chủ sở hữu: ${project.author.email}`}
+                        {" · "}
+                        Cập nhật {dateFormatter.format(project.updatedAt)}
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                        {project.files.length > 0
-                          ? "Co archive"
-                          : "Chua co archive"}
-                      </span>
-                      <Link
-                        href={`/dashboard/projects/${project.id}/edit`}
-                        className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                    <ButtonLink
+                      href={`/dashboard/projects/${project.id}/edit`}
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<PencilLine size={16} aria-hidden="true" />}
+                      className="self-start sm:self-auto"
+                    >
+                      Chỉnh sửa
+                      <span className="sr-only">: {project.title}</span>
+                    </ButtonLink>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              className="mt-5"
+              titleAs="h3"
+              title="Chưa có tài liệu nào"
+              description="Tài liệu bạn tạo hoặc được cấp quyền sẽ hiện ở đây."
+              action={
+                isAdmin ? (
+                  <ButtonLink
+                    href="/dashboard/projects/new"
+                    leftIcon={<FolderPlus size={16} aria-hidden="true" />}
+                  >
+                    Thêm tài liệu
+                  </ButtonLink>
+                ) : null
+              }
+            />
+          )}
+        </Card>
+
+        <div className="min-w-0 space-y-6">
+          <Card as="section" aria-labelledby="quick-heading">
+            <h2 id="quick-heading" className="text-lg font-semibold text-ink">
+              Lối tắt
+            </h2>
+            <ul className="mt-4 space-y-2">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+
+                return (
+                  <li key={action.href}>
+                    <Link
+                      href={action.href}
+                      className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-line px-3 py-3 transition-colors duration-150 hover:border-line-strong hover:bg-sunken"
+                    >
+                      <span
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sunken text-muted"
+                        aria-hidden="true"
                       >
-                        Mo chinh sua
-                        <ArrowRight size={16} />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-[24px] border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                Chua co folder nao de hien thi trong khu overview.
-              </div>
-            )}
-          </div>
-        </div>
+                        <Icon size={18} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-ink">
+                          {action.title}
+                        </span>
+                        <span className="block text-sm text-muted">
+                          {action.description}
+                        </span>
+                      </span>
+                      <ChevronRight
+                        size={16}
+                        className="shrink-0 text-muted"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
 
-        <div className="space-y-6">
-          <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 md:p-7">
-            <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-              Goc dieu phoi
-            </h3>
-            <div className="mt-5 space-y-4">
-              <div className="rounded-[24px] bg-blue-50 p-4 text-sm leading-7 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100">
-                Neu ban muon doi noi dung public, uu tien vao{" "}
-                <strong>Settings</strong> de cap nhat profile, sau do mo{" "}
-                <strong>About</strong> hoac <strong>CV</strong> de doi chieu.
-              </div>
-              <div className="rounded-[24px] bg-slate-100 p-4 text-sm leading-7 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                Khi quan ly folder, hay kiem tra 3 muc:{" "}
-                <strong>visibility</strong>, <strong>status</strong>, va{" "}
-                <strong>archive ready</strong> de tranh public nham hoac thieu
-                file ZIP.
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 md:p-7">
-            <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-              Loi tat nhanh
-            </h3>
-            <div className="mt-5 space-y-3">
-              {user.role === "admin" && (
-                <Link
-                  href="/dashboard/projects/new"
-                  className="flex items-center justify-between rounded-[22px] border border-slate-200 px-4 py-4 text-sm font-medium text-slate-700 transition-colors hover:border-blue-200 hover:text-blue-700 dark:border-slate-800 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:text-blue-200"
-                >
-                  Tao folder moi
-                  <ArrowRight size={16} />
-                </Link>
-              )}
-              <Link
-                href="/dashboard/settings"
-                className="flex items-center justify-between rounded-[22px] border border-slate-200 px-4 py-4 text-sm font-medium text-slate-700 transition-colors hover:border-blue-200 hover:text-blue-700 dark:border-slate-800 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:text-blue-200"
-              >
-                Mo profile settings
-                <ArrowRight size={16} />
-              </Link>
-              <Link
-                href="/projects"
-                className="flex items-center justify-between rounded-[22px] border border-slate-200 px-4 py-4 text-sm font-medium text-slate-700 transition-colors hover:border-blue-200 hover:text-blue-700 dark:border-slate-800 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:text-blue-200"
-              >
-                Xem danh sach public
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-          </section>
+          <Card as="section" aria-labelledby="tips-heading" muted>
+            <h2 id="tips-heading" className="text-lg font-semibold text-ink">
+              Lưu ý
+            </h2>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-muted">
+              <li>
+                Muốn đổi nội dung công khai, hãy cập nhật ở{" "}
+                <strong className="text-ink">Cài đặt hồ sơ</strong>, sau đó mở
+                trang <strong className="text-ink">Giới thiệu</strong> hoặc{" "}
+                <strong className="text-ink">CV</strong> để đối chiếu.
+              </li>
+              <li>
+                Với mỗi tài liệu, kiểm tra{" "}
+                <strong className="text-ink">trạng thái</strong>,{" "}
+                <strong className="text-ink">quyền hiển thị</strong> và{" "}
+                <strong className="text-ink">file ZIP</strong> để tránh công
+                khai nhầm hoặc thiếu file.
+              </li>
+            </ul>
+          </Card>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

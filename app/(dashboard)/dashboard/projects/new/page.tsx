@@ -4,19 +4,17 @@ export const dynamic = "force-dynamic";
 
 import { ProjectForm } from "@/components/projects/ProjectForm";
 import { requireAdmin } from "@/lib/auth/check-auth";
+import { PageHeader } from "@/components/ui";
 
 export default async function NewProjectPage() {
   await requireAdmin();
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Create Project</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Tạo project dạng folder để người dùng có thể tải xuống trọn bộ tài
-          liệu trong một lần.
-        </p>
-      </div>
+    <div className="max-w-4xl space-y-8">
+      <PageHeader
+        title="Thêm tài liệu"
+        description="Tải lên cả thư mục để người dùng có thể tải trọn bộ tài liệu trong một lần."
+      />
 
       <ProjectForm />
     </div>

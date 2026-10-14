@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, Download, FolderOpen } from "lucide-react";
+import { ArrowRight, CalendarDays, Download, FolderOpen } from "lucide-react";
 import { formatFileSize } from "@/lib/projects/archive";
 import { parseResourceTags } from "@/lib/projects/resource";
+import { Badge, ButtonLink, Card } from "@/components/ui";
 
 interface ProjectCardProject {
   id: string;
@@ -31,91 +32,108 @@ interface ProjectCardProps {
 export function ProjectCard({ project }: ProjectCardProps) {
   const latestArchive = project.files?.[0];
   const tags = parseResourceTags(project.techStack);
+  const detailHref = `/projects/${project.slug}`;
 
   return (
-    <div className="card overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
+    <Card
+      as="article"
+      padding="none"
+      interactive
+      className="flex w-full flex-col overflow-hidden"
+    >
       {project.thumbnailUrl && (
-        <div className="relative w-full h-48 bg-gray-200 dark:bg-gray-800">
+        <div className="relative aspect-[16/9] w-full bg-sunken">
           <Image
             src={project.thumbnailUrl}
-            alt={project.title}
+            alt={`Ảnh minh hoạ tài liệu ${project.title}`}
             fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
             className="object-cover"
           />
         </div>
       )}
 
-      <div className="p-6">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-              {project.title}
-            </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium">
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
-                <FolderOpen size={12} />
-                {project.subjectName}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                <CalendarDays size={12} />
-                {project.semester}
-              </span>
-            </div>
-          </div>
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="text-lg font-semibold leading-snug text-ink">
+          <Link
+            href={detailHref}
+            className="transition-colors hover:text-accent"
+          >
+            {project.title}
+          </Link>
+        </h3>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge tone="accent">
+            <FolderOpen size={12} aria-hidden="true" />
+            <span className="sr-only">Môn học: </span>
+            {project.subjectName}
+          </Badge>
+          <Badge>
+            <CalendarDays size={12} aria-hidden="true" />
+            <span className="sr-only">Kỳ học: </span>
+            {project.semester}
+          </Badge>
         </div>
 
-        <p className="mb-4 line-clamp-2 text-gray-700 dark:text-gray-300">
+        <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted">
           {project.shortDescription}
         </p>
 
         {tags.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-1.5">
+          <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tag">
             {tags.slice(0, 6).map((tag) => (
-              <span
+              <li
                 key={tag}
-                className="rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300"
+                className="rounded-md border border-line px-2 py-0.5 text-xs text-muted"
               >
                 {tag}
-              </span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
 
         {latestArchive && (
-          <div className="mb-5 rounded-xl bg-gray-50 p-4 dark:bg-gray-900">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+          <div className="mt-4 rounded-lg bg-sunken p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted">
               Bản tải xuống
             </p>
-            <p className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+            <p className="mt-1 break-all text-sm font-medium text-ink">
               {latestArchive.fileName}
             </p>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-              {formatFileSize(latestArchive.sizeBytes)} •{" "}
+            <p className="mt-0.5 text-sm text-muted">
+              {formatFileSize(latestArchive.sizeBytes)} ·{" "}
               {project.downloadCount.toLocaleString("vi-VN")} lượt tải
             </p>
           </div>
         )}
 
-        <div className="flex items-center justify-end border-t border-gray-200 pt-4 dark:border-gray-800">
-          <div className="flex items-center gap-3">
-            {latestArchive && (
-              <Link
-                href={`/api/projects/${project.id}/download`}
-                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                <Download size={15} />
-                Tải ZIP
-              </Link>
-            )}
-            <Link
-              href={`/projects/${project.slug}`}
-              className="text-sm font-medium text-gray-700 transition-colors hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+        <div className="mt-auto pt-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+          {latestArchive && (
+            <ButtonLink
+              href={`/api/projects/${project.id}/download`}
+              prefetch={false}
+              variant="secondary"
+              size="sm"
+              leftIcon={<Download size={15} aria-hidden="true" />}
+              aria-label={`Tải ZIP: ${project.title}`}
             >
-              Xem chi tiết
-            </Link>
-          </div>
+              Tải ZIP
+            </ButtonLink>
+          )}
+          <ButtonLink
+            href={detailHref}
+            variant="ghost"
+            size="sm"
+            rightIcon={<ArrowRight size={15} aria-hidden="true" />}
+            aria-label={`Xem chi tiết: ${project.title}`}
+          >
+            Xem chi tiết
+          </ButtonLink>
+        </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

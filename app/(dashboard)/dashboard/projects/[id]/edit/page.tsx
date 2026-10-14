@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { ProjectForm } from "@/components/projects/ProjectForm";
 import { requireAuth } from "@/lib/auth/check-auth";
+import { PageHeader } from "@/components/ui";
 import {
   canEditProject,
 } from "@/lib/auth/permissions";
@@ -71,14 +72,11 @@ export default async function EditProjectPage({
     : null;
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Edit Project</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Cập nhật tên project hoặc thay thế folder ZIP đang được người dùng tải
-          xuống.
-        </p>
-      </div>
+    <div className="max-w-4xl space-y-8">
+      <PageHeader
+        title="Chỉnh sửa tài liệu"
+        description="Cập nhật thông tin tài liệu hoặc thay thế file ZIP mà người dùng đang tải xuống."
+      />
 
       <ProjectForm project={project} existingArchive={existingArchive} />
     </div>

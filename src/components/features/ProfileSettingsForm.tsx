@@ -3,7 +3,16 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader, UploadCloud } from "lucide-react";
+import { AlertCircle, Camera, CheckCircle2, UploadCloud } from "lucide-react";
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  Textarea,
+  cn,
+  fieldDescribedBy,
+} from "@/components/ui";
 import { updateProfile } from "@/actions/profile";
 import {
   joinTextareaList,
@@ -70,6 +79,8 @@ export function ProfileSettingsForm({
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
+    /** Where to show it: next to the avatar picker or the submit button. */
+    source?: "avatar" | "form";
   } | null>(null);
 
   const handleChange = (
@@ -111,7 +122,7 @@ export function ProfileSettingsForm({
       };
 
       if (!response.ok || !result.avatarUrl) {
-        throw new Error(result.error || "Khong the tai anh dai dien len.");
+        throw new Error(result.error || "Không thể tải ảnh đại diện lên.");
       }
 
       setFormData((prev) => ({
@@ -120,16 +131,18 @@ export function ProfileSettingsForm({
       }));
       setMessage({
         type: "success",
-        text: "Anh dai dien da duoc tai len thanh cong.",
+        text: "Ảnh đại diện đã được tải lên thành công.",
+        source: "avatar",
       });
       router.refresh();
     } catch (error) {
       setMessage({
         type: "error",
+        source: "avatar",
         text:
           error instanceof Error
             ? error.message
-            : "Khong the tai anh dai dien len.",
+            : "Không thể tải ảnh đại diện lên.",
       });
     } finally {
       event.target.value = "";
@@ -153,7 +166,7 @@ export function ProfileSettingsForm({
       if (bio && bio.length > 4000) {
         setMessage({
           type: "error",
-          text: "Noi dung CV dang qua dai. Vui long rut gon bot de luu duoc.",
+          text: "Nội dung CV đang quá dài. Vui lòng rút gọn bớt để lưu được.",
         });
         return;
       }
@@ -176,297 +189,336 @@ export function ProfileSettingsForm({
       if (!result.success) {
         setMessage({
           type: "error",
-          text: result.error || "Unable to update profile",
+          text: result.error || "Không thể cập nhật hồ sơ.",
         });
         return;
       }
 
       setMessage({
         type: "success",
-        text: "Thong tin ho so da duoc cap nhat.",
+        text: "Thông tin hồ sơ đã được cập nhật.",
       });
       router.refresh();
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Unable to update profile",
+        text: error instanceof Error ? error.message : "Không thể cập nhật hồ sơ.",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const summaryHint = "Giới thiệu ngắn gọn về bản thân, kinh nghiệm và thế mạnh.";
+  const listHint = "Mỗi dòng là một ý.";
+  const avatarHint =
+    "Hỗ trợ JPEG, PNG, WebP, GIF. Kích thước tối đa theo cấu hình upload hiện tại.";
+
   return (
-    <>
-      <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100">
-        Login email: <span className="font-medium">{authEmail}</span>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <p className="rounded-lg border border-line bg-sunken p-4 text-sm text-muted">
+        Email đăng nhập:{" "}
+        <span className="break-all font-medium text-ink">{authEmail}</span>
         <br />
-        Cac thay doi ben duoi se duoc hien thi tren trang About va CV cong khai.
-      </div>
+        Các thay đổi bên dưới sẽ hiển thị trên trang Giới thiệu và CV công khai.
+      </p>
 
-      {message && (
-        <div
-          className={`mb-6 rounded-lg p-4 ${
-            message.type === "success"
-              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
+      <Card as="section" aria-labelledby="avatar-heading">
+        <h2 id="avatar-heading" className="text-lg font-semibold text-ink">
+          Ảnh đại diện
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Ảnh này sẽ hiển thị trên trang Giới thiệu và CV công khai.
+        </p>
 
-      <form onSubmit={handleSubmit} className="card space-y-8 p-8">
-        <div className="space-y-3">
-          <h2 className="text-2xl font-bold">Thong tin ho so cong khai</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Day la noi admin co the cap nhat phan About theo bo cuc giong CV.
-          </p>
-        </div>
-
-        <section className="space-y-6 rounded-3xl border border-blue-100 bg-blue-50/60 p-6 dark:border-blue-950/60 dark:bg-blue-950/20">
-          <div>
-            <h3 className="text-lg font-semibold">Anh dai dien</h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Anh nay se hien thi tren trang About va CV cong khai.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-5 md:flex-row md:items-center">
-            <div className="relative h-40 w-32 overflow-hidden rounded-[24px] border border-white/80 bg-white shadow-[0_18px_50px_-28px_rgba(37,99,235,0.55)] dark:border-white/10 dark:bg-gray-900">
-              {formData.avatarUrl ? (
-                <Image
-                  src={formData.avatarUrl}
-                  alt="Anh dai dien hien tai"
-                  fill
-                  sizes="128px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),rgba(191,219,254,0.85)_55%,rgba(147,197,253,0.8))] text-slate-900 dark:bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),rgba(30,41,59,0.92)_55%,rgba(15,23,42,1))] dark:text-white">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/70 bg-white/80 text-2xl font-black uppercase tracking-[0.16em] shadow-[0_16px_40px_-24px_rgba(59,130,246,0.7)] dark:border-white/10 dark:bg-white/10">
-                    {(formData.fullName || "AC")
-                      .split(" ")
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((part) => part[0])
-                      .join("") || "AC"}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                className="hidden"
-                onChange={handleAvatarUpload}
+        <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="relative h-40 w-32 shrink-0 overflow-hidden rounded-xl border border-line bg-sunken">
+            {formData.avatarUrl ? (
+              <Image
+                src={formData.avatarUrl}
+                alt="Ảnh đại diện hiện tại"
+                fill
+                sizes="128px"
+                className="object-cover"
               />
-
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={isUploadingAvatar}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isUploadingAvatar ? (
-                  <Loader size={16} className="animate-spin" />
-                ) : (
-                  <UploadCloud size={16} />
-                )}
-                {isUploadingAvatar ? "Dang tai anh..." : "Tai anh moi"}
-              </button>
-
-              <div className="flex items-start gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
-                <Camera size={16} className="mt-0.5 shrink-0" />
-                Ho tro JPEG, PNG, WebP, GIF. Kich thuoc toi da theo cau hinh upload hien tai.
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <div
+                  className="flex h-20 w-20 items-center justify-center rounded-full bg-accent-soft text-2xl font-semibold uppercase text-accent"
+                  aria-hidden="true"
+                >
+                  {(formData.fullName || "AC")
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join("") || "AC"}
+                </div>
+                <span className="sr-only">Chưa có ảnh đại diện</span>
               </div>
-            </div>
+            )}
           </div>
-        </section>
 
-        <section className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium">Ho ten</label>
-              <input
+          <div className="min-w-0 space-y-3">
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+
+            <Button
+              variant="secondary"
+              onClick={() => avatarInputRef.current?.click()}
+              loading={isUploadingAvatar}
+              leftIcon={<UploadCloud size={16} aria-hidden="true" />}
+              aria-describedby="avatar-hint"
+            >
+              {isUploadingAvatar ? "Đang tải ảnh..." : "Tải ảnh mới"}
+            </Button>
+
+            <p
+              id="avatar-hint"
+              className="flex items-start gap-2 text-sm text-muted"
+            >
+              <Camera size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {avatarHint}
+            </p>
+
+            <FormMessage message={message} source="avatar" />
+          </div>
+        </div>
+      </Card>
+
+      <Card as="section" aria-labelledby="about-heading">
+        <h2 id="about-heading" className="text-lg font-semibold text-ink">
+          Thông tin hồ sơ công khai
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Cập nhật phần Giới thiệu theo bố cục giống CV.
+        </p>
+
+        <div className="mt-6 space-y-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <Field label="Họ tên" htmlFor="profile-fullName">
+              <Input
+                id="profile-fullName"
                 type="text"
                 name="fullName"
+                autoComplete="name"
                 value={formData.fullName}
                 onChange={handleChange}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">Headline</label>
-              <input
+            <Field label="Chức danh" htmlFor="profile-headline">
+              <Input
+                id="profile-headline"
                 type="text"
                 name="headline"
                 value={formData.headline}
                 onChange={handleChange}
-                placeholder="Vi du: Full Stack Developer"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
+                placeholder="Ví dụ: Full Stack Developer"
               />
-            </div>
+            </Field>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">
-              Tom tat gioi thieu
-            </label>
-            <textarea
+          <Field
+            label="Tóm tắt giới thiệu"
+            htmlFor="profile-summary"
+            hint={summaryHint}
+          >
+            <Textarea
+              id="profile-summary"
               name="summary"
               value={formData.summary}
               onChange={handleChange}
-              placeholder="Gioi thieu ngan gon ve ban than, kinh nghiem va the manh..."
+              placeholder="Giới thiệu ngắn gọn về bản thân, kinh nghiệm và thế mạnh..."
               rows={6}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800"
+              aria-describedby={fieldDescribedBy("profile-summary", {
+                hint: summaryHint,
+              })}
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">
-              Dinh huong hien tai
-            </label>
-            <textarea
+          <Field label="Định hướng hiện tại" htmlFor="profile-currentFocus">
+            <Textarea
+              id="profile-currentFocus"
               name="currentFocus"
               value={formData.currentFocus}
               onChange={handleChange}
-              placeholder="Ban dang tap trung xay dung ky nang, san pham hay muc tieu nao?"
+              placeholder="Bạn đang tập trung xây dựng kỹ năng, sản phẩm hay mục tiêu nào?"
               rows={4}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800"
             />
-          </div>
+          </Field>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Diem manh
-              </label>
-              <textarea
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <Field
+              label="Điểm mạnh"
+              htmlFor="profile-strengths"
+              hint={listHint}
+            >
+              <Textarea
+                id="profile-strengths"
                 name="strengths"
                 value={formData.strengths}
                 onChange={handleChange}
-                placeholder={"Moi dong la mot y\nXay dung web app\nThiet ke dashboard\nToi uu quy trinh"}
+                placeholder={
+                  "Xây dựng web app\nThiết kế dashboard\nTối ưu quy trình"
+                }
                 rows={6}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800"
+                aria-describedby={fieldDescribedBy("profile-strengths", {
+                  hint: listHint,
+                })}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Diem nhan / dau an
-              </label>
-              <textarea
+            <Field
+              label="Điểm nhấn / dấu ấn"
+              htmlFor="profile-highlights"
+              hint={listHint}
+            >
+              <Textarea
+                id="profile-highlights"
                 name="highlights"
                 value={formData.highlights}
                 onChange={handleChange}
-                placeholder={"Moi dong la mot y\nDa co dashboard quan tri\nDa deploy Vercel\nDang phat trien bo cong cu"}
+                placeholder={
+                  "Đã có dashboard quản trị\nĐã deploy Vercel\nĐang phát triển bộ công cụ"
+                }
                 rows={6}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800"
+                aria-describedby={fieldDescribedBy("profile-highlights", {
+                  hint: listHint,
+                })}
               />
-            </div>
+            </Field>
           </div>
-        </section>
-
-        <section className="space-y-6 border-t border-gray-200 pt-8 dark:border-gray-800">
-          <div>
-            <h3 className="text-lg font-semibold">Thong tin lien he</h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Cac muc nay xuat hien o sidebar cua trang About va CV.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Email cong khai
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="contact@example.com"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">So dien thoai</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+84 ..."
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">GitHub URL</label>
-              <input
-                type="url"
-                name="githubUrl"
-                value={formData.githubUrl}
-                onChange={handleChange}
-                placeholder="https://github.com/..."
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">LinkedIn URL</label>
-              <input
-                type="url"
-                name="linkedinUrl"
-                value={formData.linkedinUrl}
-                onChange={handleChange}
-                placeholder="https://linkedin.com/in/..."
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">Facebook URL</label>
-              <input
-                type="url"
-                name="facebookUrl"
-                value={formData.facebookUrl}
-                onChange={handleChange}
-                placeholder="https://facebook.com/..."
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">Website URL</label>
-              <input
-                type="url"
-                name="websiteUrl"
-                value={formData.websiteUrl}
-                onChange={handleChange}
-                placeholder="https://..."
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
-              />
-            </div>
-          </div>
-        </section>
-
-        <div className="flex gap-4 border-t border-gray-200 pt-6 dark:border-gray-800">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn-primary disabled:opacity-50"
-          >
-            {isLoading ? "Dang luu..." : "Luu thong tin"}
-          </button>
         </div>
-      </form>
-    </>
+      </Card>
+
+      <Card as="section" aria-labelledby="contact-heading">
+        <h2 id="contact-heading" className="text-lg font-semibold text-ink">
+          Thông tin liên hệ
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Các mục này xuất hiện ở cột bên của trang Giới thiệu và CV.
+        </p>
+
+        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+          {CONTACT_FIELDS.map((field) => (
+            <Field
+              key={field.name}
+              label={field.label}
+              htmlFor={`profile-${field.name}`}
+            >
+              <Input
+                id={`profile-${field.name}`}
+                type={field.type}
+                name={field.name}
+                autoComplete={field.autoComplete}
+                value={formData[field.name]}
+                onChange={handleChange}
+                placeholder={field.placeholder}
+              />
+            </Field>
+          ))}
+        </div>
+      </Card>
+
+      <div className="space-y-3">
+        <FormMessage message={message} source="form" />
+        <Button type="submit" loading={isLoading}>
+          {isLoading ? "Đang lưu..." : "Lưu thông tin"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+const CONTACT_FIELDS: Array<{
+  name:
+    | "email"
+    | "phone"
+    | "githubUrl"
+    | "linkedinUrl"
+    | "facebookUrl"
+    | "websiteUrl";
+  label: string;
+  type: "email" | "tel" | "url";
+  placeholder: string;
+  autoComplete?: string;
+}> = [
+  {
+    name: "email",
+    label: "Email công khai",
+    type: "email",
+    placeholder: "contact@example.com",
+    autoComplete: "email",
+  },
+  {
+    name: "phone",
+    label: "Số điện thoại",
+    type: "tel",
+    placeholder: "+84 ...",
+    autoComplete: "tel",
+  },
+  {
+    name: "githubUrl",
+    label: "GitHub URL",
+    type: "url",
+    placeholder: "https://github.com/...",
+  },
+  {
+    name: "linkedinUrl",
+    label: "LinkedIn URL",
+    type: "url",
+    placeholder: "https://linkedin.com/in/...",
+  },
+  {
+    name: "facebookUrl",
+    label: "Facebook URL",
+    type: "url",
+    placeholder: "https://facebook.com/...",
+  },
+  {
+    name: "websiteUrl",
+    label: "Địa chỉ website",
+    type: "url",
+    placeholder: "https://...",
+  },
+];
+
+function FormMessage({
+  message,
+  source,
+}: {
+  message: {
+    type: "success" | "error";
+    text: string;
+    source?: "avatar" | "form";
+  } | null;
+  source: "avatar" | "form";
+}) {
+  if (!message || (message.source ?? "form") !== source) {
+    return null;
+  }
+
+  const isError = message.type === "error";
+  const Icon = isError ? AlertCircle : CheckCircle2;
+
+  return (
+    <p
+      role={isError ? "alert" : "status"}
+      className={cn(
+        "flex items-start gap-2 rounded-lg border p-3 text-sm",
+        isError
+          ? "border-danger/30 bg-danger-soft text-danger"
+          : "border-success/30 bg-success-soft text-success",
+      )}
+    >
+      <Icon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+      {message.text}
+    </p>
   );
 }

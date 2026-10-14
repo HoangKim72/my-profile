@@ -2,7 +2,22 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Plus,
+  RotateCcw,
+  Save,
+  Trash2,
+} from "lucide-react";
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  Textarea,
+  fieldDescribedBy,
+} from "@/components/ui";
 import {
   resetMicFilterConfig,
   saveMicFilterConfig,
@@ -25,10 +40,10 @@ const SHIFT_KEYS: ShiftKey[] = ["morning", "afternoon", "evening"];
 
 const RULE_FIELDS = [
   ["matchFromMinutes", "Lớp bắt đầu từ"],
-  ["matchToMinutes", "đến"],
+  ["matchToMinutes", "Lớp bắt đầu đến"],
   ["alarmMinutes", "Chuông lúc"],
   ["promptFromMinutes", "Hiện gợi ý từ"],
-  ["promptToMinutes", "đến"],
+  ["promptToMinutes", "Hiện gợi ý đến"],
 ] as const;
 
 type RuleField = (typeof RULE_FIELDS)[number][0];
@@ -42,12 +57,6 @@ interface FormDraft {
   shifts: Record<ShiftKey, { start: string; end: string }>;
   rules: RuleDraft[];
 }
-
-const INPUT_CLASS =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white";
-
-const SECTION_CLASS =
-  "rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 md:p-7";
 
 export function MicFilterConfigForm({
   initialConfig,
@@ -143,71 +152,77 @@ export function MicFilterConfigForm({
     }
   };
 
+  const roomsHint = `${rooms.length} phòng trên ${floorCount} tầng.`;
+  const roomsError =
+    invalidRooms.length > 0
+      ? `Mã không đúng định dạng: ${invalidRooms.slice(0, 10).join(", ")}${
+          invalidRooms.length > 10 ? "…" : ""
+        }`
+      : undefined;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-800 dark:bg-red-950/60 dark:text-red-100">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <div className="rounded-2xl bg-emerald-100 p-4 text-sm text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-100">
-          {notice}
-        </div>
-      )}
-
-      <section className={SECTION_CLASS}>
-        <h3 className="text-xl font-bold text-slate-950 dark:text-white">
+      <Card as="section" aria-labelledby="mic-rooms-heading">
+        <h2 id="mic-rooms-heading" className="text-lg font-semibold text-ink">
           Phòng có mic không dây
-        </h3>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-          Mỗi dòng một mã phòng dạng <code>E1-05.07</code>. Dấu phẩy và khoảng
-          trắng cũng được chấp nhận. Mã trùng sẽ tự bỏ.
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Mỗi dòng một mã phòng dạng <code className="font-mono">E1-05.07</code>.
+          Dấu phẩy và khoảng trắng cũng được chấp nhận. Mã trùng sẽ tự bỏ.
         </p>
-        <textarea
-          value={draft.roomsText}
-          onChange={(event) =>
-            updateDraft((current) => ({
-              ...current,
-              roomsText: event.target.value,
-            }))
-          }
-          rows={12}
-          spellCheck={false}
-          className={`${INPUT_CLASS} mt-4 font-mono`}
-        />
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-          {rooms.length} phòng trên {floorCount} tầng.
-        </p>
-        {invalidRooms.length > 0 && (
-          <p className="mt-2 text-sm font-medium text-red-600 dark:text-red-300">
-            Mã không đúng định dạng: {invalidRooms.slice(0, 10).join(", ")}
-            {invalidRooms.length > 10 ? "…" : ""}
-          </p>
-        )}
-      </section>
+        <Field
+          htmlFor="mic-rooms"
+          label="Danh sách mã phòng"
+          hint={roomsHint}
+          error={roomsError}
+          className="mt-4"
+        >
+          <Textarea
+            id="mic-rooms"
+            value={draft.roomsText}
+            onChange={(event) =>
+              updateDraft((current) => ({
+                ...current,
+                roomsText: event.target.value,
+              }))
+            }
+            rows={12}
+            spellCheck={false}
+            className="font-mono text-sm"
+            invalid={Boolean(roomsError)}
+            aria-describedby={fieldDescribedBy("mic-rooms", {
+              hint: roomsHint,
+              error: roomsError,
+            })}
+          />
+        </Field>
+      </Card>
 
-      <section className={SECTION_CLASS}>
-        <h3 className="text-xl font-bold text-slate-950 dark:text-white">
+      <Card as="section" aria-labelledby="mic-shifts-heading">
+        <h2 id="mic-shifts-heading" className="text-lg font-semibold text-ink">
           Khung giờ ca
-        </h3>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        </h2>
+        <p className="mt-1 text-sm text-muted">
           Một lớp được tính vào ca nếu thời gian học chồng lên khung giờ này.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {SHIFT_KEYS.map((key) => (
             <fieldset
               key={key}
-              className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+              className="min-w-0 rounded-lg border border-line p-4"
             >
-              <legend className="px-1 text-sm font-semibold text-slate-900 dark:text-white">
+              <legend className="px-1 text-sm font-semibold text-ink">
                 {SHIFT_LABELS[key]}
               </legend>
               <div className="grid grid-cols-2 gap-3">
                 {(["start", "end"] as const).map((edge) => (
-                  <label key={edge} className="text-xs text-slate-500">
-                    {edge === "start" ? "Bắt đầu" : "Kết thúc"}
-                    <input
+                  <Field
+                    key={edge}
+                    htmlFor={`mic-shift-${key}-${edge}`}
+                    label={edge === "start" ? "Bắt đầu" : "Kết thúc"}
+                  >
+                    <Input
+                      id={`mic-shift-${key}-${edge}`}
                       type="time"
                       value={draft.shifts[key][edge]}
                       onChange={(event) =>
@@ -222,62 +237,74 @@ export function MicFilterConfigForm({
                           },
                         }))
                       }
-                      className={`${INPUT_CLASS} mt-1`}
+                      className="px-2 font-mono tabular-nums"
                       required
                     />
-                  </label>
+                  </Field>
                 ))}
               </div>
             </fieldset>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className={SECTION_CLASS}>
+      <Card as="section" aria-labelledby="mic-rules-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-bold text-slate-950 dark:text-white">
-              Rule nhắc bật máy lạnh
-            </h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-              Nếu file có lớp bắt đầu trong khung giờ của rule, tool sẽ gợi ý
+          <div className="min-w-0">
+            <h2
+              id="mic-rules-heading"
+              className="text-lg font-semibold text-ink"
+            >
+              Quy tắc nhắc bật máy lạnh
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Nếu file có lớp bắt đầu trong khung giờ của quy tắc, tool sẽ gợi ý
               đặt chuông. Gợi ý chỉ hiện trong khung &quot;Hiện gợi ý&quot;.
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<Plus size={16} aria-hidden="true" />}
             onClick={() =>
               updateDraft((current) => ({
                 ...current,
                 rules: [...current.rules, createRuleDraft()],
               }))
             }
-            className="btn-secondary"
           >
-            <Plus size={16} />
-            Thêm rule
-          </button>
+            Thêm quy tắc
+          </Button>
         </div>
 
         <div className="mt-4 space-y-4">
           {draft.rules.length === 0 && (
-            <p className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500 dark:border-slate-700">
-              Chưa có rule nào, tool sẽ không gợi ý đặt chuông.
+            <p className="rounded-lg border border-dashed border-line-strong p-4 text-sm text-muted">
+              Chưa có quy tắc nào, tool sẽ không gợi ý đặt chuông.
             </p>
           )}
           {draft.rules.map((rule, index) => {
             const preview = previewRule(rule);
+            const previewId = `mic-rule-${rule.id}-preview`;
 
             return (
-              <div
+              <fieldset
                 key={rule.id}
-                className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+                className="min-w-0 rounded-lg border border-line p-4"
+                aria-describedby={previewId}
               >
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                <legend className="px-1 text-sm font-semibold text-ink">
+                  Quy tắc {index + 1}
+                </legend>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                   {RULE_FIELDS.map(([field, label]) => (
-                    <label key={field} className="text-xs text-slate-500">
-                      {label}
-                      <input
+                    <Field
+                      key={field}
+                      htmlFor={`mic-rule-${rule.id}-${field}`}
+                      label={label}
+                    >
+                      <Input
+                        id={`mic-rule-${rule.id}-${field}`}
                         type="time"
                         value={rule[field]}
                         onChange={(event) =>
@@ -290,18 +317,21 @@ export function MicFilterConfigForm({
                             ),
                           }))
                         }
-                        className={`${INPUT_CLASS} mt-1`}
+                        className="px-2 font-mono tabular-nums"
                         required
                       />
-                    </label>
+                    </Field>
                   ))}
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                  <p id={previewId} className="min-w-0 text-sm text-muted">
                     {preview ?? "Nhập đủ giờ để xem trước câu gợi ý."}
                   </p>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
+                    leftIcon={<Trash2 size={16} aria-hidden="true" />}
                     onClick={() =>
                       updateDraft((current) => ({
                         ...current,
@@ -310,37 +340,56 @@ export function MicFilterConfigForm({
                         ),
                       }))
                     }
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-300"
                   >
-                    <Trash2 size={15} />
-                    Xoá rule
-                  </button>
+                    Xoá quy tắc {index + 1}
+                  </Button>
                 </div>
-              </div>
+              </fieldset>
             );
           })}
         </div>
-      </section>
+      </Card>
+
+      {error && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger"
+        >
+          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-success/30 bg-success-soft p-4 text-sm text-success"
+        >
+          <CheckCircle2
+            size={16}
+            className="mt-0.5 shrink-0"
+            aria-hidden="true"
+          />
+          {notice}
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-3">
-        <button type="submit" disabled={isSaving} className="btn-primary">
-          {isSaving ? (
-            <Loader size={16} className="animate-spin" />
-          ) : (
-            <Save size={16} />
-          )}
+        <Button
+          type="submit"
+          loading={isSaving}
+          leftIcon={<Save size={16} aria-hidden="true" />}
+        >
           Lưu cấu hình
-        </button>
+        </Button>
         {!isUsingDefaults && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             disabled={isSaving}
             onClick={() => void handleReset()}
-            className="btn-secondary"
+            leftIcon={<RotateCcw size={16} aria-hidden="true" />}
           >
-            <RotateCcw size={16} />
             Về mặc định
-          </button>
+          </Button>
         )}
       </div>
     </form>
@@ -432,7 +481,7 @@ function fromDraft(
     const parsed = parseRule(rule);
 
     if (!parsed) {
-      return { error: `Rule nhắc thứ ${index + 1} còn thiếu giờ.` };
+      return { error: `Quy tắc nhắc thứ ${index + 1} còn thiếu giờ.` };
     }
 
     alarmRules.push(parsed);

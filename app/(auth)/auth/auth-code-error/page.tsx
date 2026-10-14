@@ -1,25 +1,36 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { AlertTriangle } from "lucide-react";
+import { ButtonLink, Card } from "@/components/ui";
+
+export const metadata: Metadata = {
+  title: "Xác thực không thành công",
+  description: "Không thể hoàn tất đăng nhập hoặc xác nhận email.",
+};
 
 export default function AuthCodeErrorPage() {
   return (
-    <div className="min-h-screen px-4 py-24">
-      <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-white p-8 shadow-sm dark:border-red-900 dark:bg-gray-950">
-        <h1 className="mb-4 text-3xl font-bold text-red-700 dark:text-red-300">
-          Authentication failed
-        </h1>
-        <p className="mb-6 text-gray-600 dark:text-gray-300">
-          We could not complete the sign-in or email confirmation request.
-          Please try again, or return to the login page and start over.
-        </p>
-        <div className="flex gap-3">
-          <Link href="/login" className="btn-primary">
-            Back to login
-          </Link>
-          <Link href="/" className="btn-secondary">
-            Go home
-          </Link>
+    <div className="mx-auto w-full max-w-xl py-8">
+      <Card padding="lg">
+        <div
+          className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-danger-soft text-danger"
+          aria-hidden="true"
+        >
+          <AlertTriangle size={22} />
         </div>
-      </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          Xác thực không thành công
+        </h1>
+        <p className="mt-3 text-base leading-7 text-muted">
+          Không thể hoàn tất yêu cầu đăng nhập hoặc xác nhận email. Vui lòng
+          thử lại, hoặc quay về trang đăng nhập để bắt đầu lại.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <ButtonLink href="/login">Về trang đăng nhập</ButtonLink>
+          <ButtonLink href="/" variant="secondary">
+            Về trang chủ
+          </ButtonLink>
+        </div>
+      </Card>
     </div>
   );
 }

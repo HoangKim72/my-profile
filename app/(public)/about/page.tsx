@@ -5,8 +5,8 @@ import { buildResumeViewModel } from "@/lib/profile/resume-view";
 import { ProfileResume } from "@/components/features/ProfileResume";
 
 export const metadata: Metadata = {
-  title: "About",
-  description: "Ho so gioi thieu theo bo cuc CV",
+  title: "Giới thiệu",
+  description: "Hồ sơ giới thiệu theo bố cục CV.",
 };
 
 export const dynamic = "force-dynamic";

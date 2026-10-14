@@ -1,20 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { type KeyboardEvent, useState } from "react";
+import { type KeyboardEvent, useId, useRef, useState } from "react";
 import {
   Activity,
+  ArrowRight,
   ArrowUpRight,
-  ArrowDownWideNarrow,
   BarChart3,
   BookOpenCheck,
+  ChevronDown,
   Clock3,
   FolderKanban,
   Github,
   Layers3,
   ListFilter,
-  MousePointer2,
-  Sparkles,
+  MousePointerClick,
   TimerReset,
   Wrench,
 } from "lucide-react";
@@ -31,8 +31,34 @@ import type {
   SkillsSourceState,
   SkillsToolItem,
 } from "@/lib/skills/types";
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  Field,
+  PageHeader,
+  Select,
+  buttonClasses,
+  cn,
+  type BadgeTone,
+} from "@/components/ui";
 
 type SkillsTab = "overview" | "github" | "wakatime";
+
+const TABS: Array<{ value: SkillsTab; label: string }> = [
+  { value: "overview", label: "Tổng quan" },
+  { value: "github", label: "GitHub" },
+  { value: "wakatime", label: "WakaTime" },
+];
+
+/** Display names for source labels (the raw values are used for sorting). */
+const SOURCE_LABEL_DISPLAY: Record<string, string> = {
+  Projects: "Kho tài liệu",
+};
+
+function formatSourceLabels(labels: string[]) {
+  return labels.map((label) => SOURCE_LABEL_DISPLAY[label] ?? label).join(" + ");
+}
 
 interface SkillsShowcaseProps {
   data: SkillsPageData;
@@ -40,254 +66,285 @@ interface SkillsShowcaseProps {
 
 export function SkillsShowcase({ data }: SkillsShowcaseProps) {
   const [activeTab, setActiveTab] = useState<SkillsTab>("overview");
+  const baseId = useId();
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const tabId = (value: SkillsTab) => `${baseId}-tab-${value}`;
+  const panelId = `${baseId}-panel`;
+
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = TABS.findIndex((tab) => tab.value === activeTab);
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % TABS.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = TABS.length - 1;
+    }
+
+    if (nextIndex !== null) {
+      event.preventDefault();
+      setActiveTab(TABS[nextIndex].value);
+      tabRefs.current[nextIndex]?.focus();
+    }
+  };
 
   return (
-    <div className="bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.16),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.16),_transparent_30%),linear-gradient(180deg,_#020617_0%,_#07111f_48%,_#091726_100%)] py-14 md:py-16">
-      <div className="container-custom max-w-7xl">
-        <section className="relative overflow-hidden rounded-[2rem] border border-slate-800/80 bg-[#030817]/95 px-6 py-8 shadow-[0_30px_80px_-36px_rgba(14,165,233,0.28)] sm:px-8 lg:px-10">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_top,_rgba(52,211,153,0.14),_transparent_52%)]" />
+    <div className="container-custom max-w-7xl py-10 sm:py-14">
+      <PageHeader
+        eyebrow="Kỹ năng"
+        title="Kỹ năng thật từ dự án và thời gian làm việc"
+        description="GitHub cho biết mình đã xây dựng gì. Kho tài liệu dẫn vào từng trường hợp cụ thể. WakaTime cho biết mình đang dùng gì nhiều. Phần khai báo thủ công giữ lại cách làm việc và kỹ năng mềm."
+        actions={
+          <ButtonLink
+            href="/projects"
+            variant="secondary"
+            rightIcon={<ArrowRight size={16} aria-hidden="true" />}
+          >
+            Xem kho tài liệu
+          </ButtonLink>
+        }
+      />
 
-          <header className="relative border-b border-slate-800/80 pb-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-100">
-              <Sparkles size={14} />
-              Skills / Signal Board
-            </div>
+      <p className="mt-4 inline-flex items-center gap-2 text-sm text-muted">
+        <MousePointerClick size={16} className="shrink-0" aria-hidden="true" />
+        Bấm “Xem minh chứng” trên mỗi thẻ kỹ năng để mở danh sách dự án liên
+        quan.
+      </p>
 
-            <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] xl:items-end">
-              <div>
-                <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                  Skills thật từ dự án và thời gian làm việc
-                </h1>
-                <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">
-                  GitHub cho biết mình đã build gì. Project archive giữ đường
-                  dẫn vào từng case cụ thể. WakaTime cho biết mình đang dùng gì
-                  nhiều. Phần manual giữ lại cách làm việc và soft skills không
-                  thể tự động hóa hoàn toàn.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100">
-                    <MousePointer2 size={15} />
-                    Hover desktop hoac tap mobile de mo project evidence
-                  </div>
-                  <Link
-                    href="/projects"
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/30 hover:text-white"
-                  >
-                    Mở project archive
-                    <ArrowUpRight size={15} />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                {data.overviewStats.map((stat) => (
-                  <OverviewStatCard key={stat.label} stat={stat} />
-                ))}
-              </div>
-            </div>
-          </header>
-
-          <div className="relative mt-8 grid gap-4 xl:grid-cols-3">
-            <SourceStatusCard
-              title="GitHub Signal"
-              icon={Github}
-              state={data.githubState}
-            />
-            <SourceStatusCard
-              title="Project Archive"
-              icon={FolderKanban}
-              state={data.projectState}
-            />
-            <SourceStatusCard
-              title="WakaTime Signal"
-              icon={Activity}
-              state={data.wakatimeState}
-            />
-          </div>
-
-          <div className="relative mt-8 flex flex-wrap gap-3">
-            <TabButton
-              label="Overview"
-              isActive={activeTab === "overview"}
-              onClick={() => setActiveTab("overview")}
-            />
-            <TabButton
-              label="GitHub"
-              isActive={activeTab === "github"}
-              onClick={() => setActiveTab("github")}
-            />
-            <TabButton
-              label="WakaTime"
-              isActive={activeTab === "wakatime"}
-              onClick={() => setActiveTab("wakatime")}
-            />
-          </div>
-
-          <div className="relative mt-8 space-y-8">
-            {activeTab === "overview" ? (
-              <>
-                <SectionHeader
-                  eyebrow="Core Tech Stack"
-                  title="Tech stack hợp nhất"
-                  description="Mỗi card ưu tiên tên skill, usage, số project va danh sach project evidence. Filter va sort dat ngay tren grid de tra cuu nhanh."
-                />
-                <SkillCardGrid
-                  items={data.coreTechStack}
-                  emptyText="Chưa có enough signal để dựng core stack."
-                />
-
-                <div className="grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
-                  <div className="space-y-8">
-                    <SectionHeader
-                      eyebrow="Most Used Languages"
-                      title="Ngôn ngữ dùng nhiều nhất"
-                      description="Tổng hợp theo 30 ngày gần nhất từ WakaTime."
-                    />
-                    <LanguagePanel
-                      items={data.mostUsedLanguages}
-                      emptyText="Thêm WAKATIME_API_KEY để mở thống kê ngôn ngữ."
-                    />
-                  </div>
-
-                  <div className="space-y-8">
-                    <SectionHeader
-                      eyebrow="Activity Insights"
-                      title="Nhịp làm việc gần đây"
-                      description="Snapshot nhanh cho tuần gần nhất."
-                    />
-                    <ActivityPanel
-                      items={data.activityInsights}
-                      emptyText="WakaTime chưa sẵn sàng nên chưa có activity insight."
-                    />
-                  </div>
-                </div>
-
-                <SectionHeader
-                  eyebrow="Tools & Environment"
-                  title="Công cụ và môi trường"
-                  description="Ghép editors, operating systems, deployment/tooling và source control."
-                />
-                <ToolsGrid
-                  items={data.toolsAndEnvironment}
-                  emptyText="Chưa có đủ dữ liệu tool/environment."
-                />
-
-                <SectionHeader
-                  eyebrow="Manual Layer"
-                  title="Soft skills vẫn giữ thủ công"
-                  description="Nhóm này không lấy từ telemetry vì mục tiêu là phản ánh cách làm việc thay vì chỉ số usage."
-                />
-                <SoftSkillsGrid items={data.softSkills} />
-              </>
-            ) : null}
-
-            {activeTab === "github" ? (
-              <>
-                <SectionHeader
-                  eyebrow="GitHub-based"
-                  title="Tech stack theo dự án"
-                  description="Tập trung vào project evidence tu GitHub repo, cho thay skill nao da duoc dung va dung trong nhung repo nao."
-                />
-                <SkillCardGrid
-                  items={data.githubTechStack}
-                  emptyText="GitHub chưa có repo đủ dữ liệu để phân tích."
-                />
-
-                <SectionHeader
-                  eyebrow="Repo Evidence"
-                  title="Project spotlight"
-                  description="Một vài repo gần đây được dùng để dựng tech map. Mỗi card hiển thị tag công nghệ đã phát hiện từ repo."
-                />
-                <ProjectSpotlightGrid
-                  items={data.githubProjects}
-                  emptyText="Chưa có repo spotlight để hiển thị."
-                />
-              </>
-            ) : null}
-
-            {activeTab === "wakatime" ? (
-              <>
-                <div className="grid gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
-                  <div className="space-y-8">
-                    <SectionHeader
-                      eyebrow="WakaTime-based"
-                      title="Language usage"
-                      description="Tỷ trọng ngôn ngữ coding trong 30 ngày gần nhất."
-                    />
-                    <LanguagePanel
-                      items={data.mostUsedLanguages}
-                      emptyText="WakaTime chưa sẵn sàng nên chưa có language usage."
-                    />
-                  </div>
-
-                  <div className="space-y-8">
-                    <SectionHeader
-                      eyebrow="Activity Insights"
-                      title="Coding rhythm"
-                      description="Tín hiệu hoạt động gần đây để thấy thói quen làm việc thực tế."
-                    />
-                    <ActivityPanel
-                      items={data.activityInsights}
-                      emptyText="WakaTime chưa sẵn sàng nên chưa có activity insight."
-                    />
-                  </div>
-                </div>
-
-                <SectionHeader
-                  eyebrow="Editors / OS / Tools"
-                  title="Môi trường đang dùng"
-                  description="Kết hợp editor, operating system từ WakaTime với deployment/tooling signal từ GitHub."
-                />
-                <ToolsGrid
-                  items={data.toolsAndEnvironment}
-                  emptyText="Chưa có dữ liệu công cụ và môi trường."
-                />
-              </>
-            ) : null}
-          </div>
+      {data.overviewStats.length > 0 ? (
+        <section aria-label="Số liệu tổng quan" className="mt-8">
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {data.overviewStats.map((stat) => (
+              <OverviewStatCard key={stat.label} stat={stat} />
+            ))}
+          </ul>
         </section>
+      ) : null}
+
+      <section aria-labelledby={`${baseId}-sources`} className="mt-8">
+        <h2 id={`${baseId}-sources`} className="sr-only">
+          Nguồn dữ liệu
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SourceStatusCard
+            title="GitHub"
+            icon={Github}
+            state={data.githubState}
+          />
+          <SourceStatusCard
+            title="Kho tài liệu"
+            icon={FolderKanban}
+            state={data.projectState}
+          />
+          <SourceStatusCard
+            title="WakaTime"
+            icon={Activity}
+            state={data.wakatimeState}
+          />
+        </div>
+      </section>
+
+      <div
+        role="tablist"
+        aria-label="Chế độ xem kỹ năng"
+        className="mt-10 flex flex-wrap gap-1 border-b border-line"
+      >
+        {TABS.map((tab, index) => {
+          const isActive = activeTab === tab.value;
+
+          return (
+            <button
+              key={tab.value}
+              ref={(node) => {
+                tabRefs.current[index] = node;
+              }}
+              type="button"
+              role="tab"
+              id={tabId(tab.value)}
+              aria-selected={isActive}
+              aria-controls={panelId}
+              tabIndex={isActive ? 0 : -1}
+              onClick={() => setActiveTab(tab.value)}
+              onKeyDown={handleTabKeyDown}
+              className={cn(
+                "-mb-px inline-flex min-h-11 cursor-pointer items-center border-b-2 px-4 text-sm font-semibold transition-colors",
+                isActive
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted hover:border-line-strong hover:text-ink",
+              )}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={tabId(activeTab)}
+        tabIndex={0}
+        className="mt-8 space-y-10"
+      >
+        {activeTab === "overview" ? (
+          <>
+            <div className="space-y-5">
+              <SectionHeader
+                eyebrow="Công nghệ cốt lõi"
+                title="Bộ công nghệ hợp nhất"
+                description="Mỗi thẻ cho biết mức độ sử dụng, số dự án và danh sách minh chứng. Bộ lọc và sắp xếp đặt ngay trên lưới để tra cứu nhanh."
+              />
+              <SkillCardGrid
+                items={data.coreTechStack}
+                emptyText="Chưa đủ dữ liệu để dựng bộ công nghệ cốt lõi."
+              />
+            </div>
+
+            <div className="grid gap-10 lg:grid-cols-2">
+              <div className="space-y-5">
+                <SectionHeader
+                  eyebrow="Ngôn ngữ"
+                  title="Ngôn ngữ dùng nhiều nhất"
+                  description="Tổng hợp theo 30 ngày gần nhất từ WakaTime."
+                />
+                <LanguagePanel
+                  items={data.mostUsedLanguages}
+                  emptyText="Thêm WAKATIME_API_KEY để mở thống kê ngôn ngữ."
+                />
+              </div>
+
+              <div className="space-y-5">
+                <SectionHeader
+                  eyebrow="Nhịp làm việc"
+                  title="Hoạt động gần đây"
+                  description="Tóm tắt nhanh cho tuần gần nhất."
+                />
+                <ActivityPanel
+                  items={data.activityInsights}
+                  emptyText="WakaTime chưa sẵn sàng nên chưa có dữ liệu nhịp làm việc."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <SectionHeader
+                eyebrow="Công cụ và môi trường"
+                title="Công cụ và môi trường"
+                description="Gồm trình soạn thảo, hệ điều hành, công cụ triển khai và quản lý mã nguồn."
+              />
+              <ToolsGrid
+                items={data.toolsAndEnvironment}
+                emptyText="Chưa có đủ dữ liệu công cụ và môi trường."
+              />
+            </div>
+
+            <div className="space-y-5">
+              <SectionHeader
+                eyebrow="Khai báo thủ công"
+                title="Kỹ năng mềm"
+                description="Nhóm này không lấy từ dữ liệu đo lường vì mục tiêu là phản ánh cách làm việc thay vì chỉ số sử dụng."
+              />
+              <SoftSkillsGrid items={data.softSkills} />
+            </div>
+          </>
+        ) : null}
+
+        {activeTab === "github" ? (
+          <>
+            <div className="space-y-5">
+              <SectionHeader
+                eyebrow="Dựa trên GitHub"
+                title="Công nghệ theo dự án"
+                description="Tập trung vào minh chứng từ các repo GitHub: kỹ năng nào đã được dùng và dùng trong những repo nào."
+              />
+              <SkillCardGrid
+                items={data.githubTechStack}
+                emptyText="GitHub chưa có repo đủ dữ liệu để phân tích."
+              />
+            </div>
+
+            <div className="space-y-5">
+              <SectionHeader
+                eyebrow="Minh chứng từ repo"
+                title="Repo nổi bật"
+                description="Một vài repo gần đây được dùng để dựng bản đồ công nghệ. Mỗi thẻ hiển thị tag công nghệ phát hiện được từ repo."
+              />
+              <ProjectSpotlightGrid
+                items={data.githubProjects}
+                emptyText="Chưa có repo nổi bật để hiển thị."
+              />
+            </div>
+          </>
+        ) : null}
+
+        {activeTab === "wakatime" ? (
+          <>
+            <div className="grid gap-10 lg:grid-cols-2">
+              <div className="space-y-5">
+                <SectionHeader
+                  eyebrow="Dựa trên WakaTime"
+                  title="Tỷ trọng ngôn ngữ"
+                  description="Tỷ trọng ngôn ngữ lập trình trong 30 ngày gần nhất."
+                />
+                <LanguagePanel
+                  items={data.mostUsedLanguages}
+                  emptyText="WakaTime chưa sẵn sàng nên chưa có tỷ trọng ngôn ngữ."
+                />
+              </div>
+
+              <div className="space-y-5">
+                <SectionHeader
+                  eyebrow="Nhịp làm việc"
+                  title="Nhịp viết code"
+                  description="Tín hiệu hoạt động gần đây để thấy thói quen làm việc thực tế."
+                />
+                <ActivityPanel
+                  items={data.activityInsights}
+                  emptyText="WakaTime chưa sẵn sàng nên chưa có dữ liệu nhịp làm việc."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <SectionHeader
+                eyebrow="Trình soạn thảo / Hệ điều hành / Công cụ"
+                title="Môi trường đang dùng"
+                description="Kết hợp trình soạn thảo, hệ điều hành từ WakaTime với tín hiệu triển khai và công cụ từ GitHub."
+              />
+              <ToolsGrid
+                items={data.toolsAndEnvironment}
+                emptyText="Chưa có dữ liệu công cụ và môi trường."
+              />
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function TabButton({
-  label,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
+function OverviewStatCard({ stat }: { stat: SkillsOverviewStat }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
-        isActive
-          ? "border border-cyan-300/40 bg-cyan-400/15 text-cyan-100 shadow-[0_12px_28px_-18px_rgba(34,211,238,0.9)]"
-          : "border border-slate-700 bg-slate-900/80 text-slate-300 hover:border-cyan-400/30 hover:text-white"
-      }`}
-    >
-      {label}
-    </button>
+    <Card as="li" padding="sm">
+      <p className="text-sm font-medium text-muted">{stat.label}</p>
+      <p className="mt-1 font-mono text-2xl font-semibold tracking-tight text-ink">
+        {stat.value}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-muted">{stat.description}</p>
+    </Card>
   );
 }
 
-function OverviewStatCard({ stat }: { stat: SkillsOverviewStat }) {
-  return (
-    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/50 p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-        {stat.label}
-      </p>
-      <p className="mt-3 text-3xl font-bold tracking-tight text-white">
-        {stat.value}
-      </p>
-      <p className="mt-3 text-sm leading-6 text-slate-300">{stat.description}</p>
-    </div>
-  );
-}
+const SOURCE_STATUS_TONE: Record<SkillsSourceState["status"], BadgeTone> = {
+  ready: "success",
+  "needs-config": "warn",
+  empty: "neutral",
+  error: "danger",
+};
 
 function SourceStatusCard({
   title,
@@ -298,35 +355,27 @@ function SourceStatusCard({
   icon: typeof Github;
   state: SkillsSourceState;
 }) {
-  const toneClasses = {
-    ready: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
-    "needs-config": "border-amber-400/20 bg-amber-400/10 text-amber-100",
-    empty: "border-slate-700 bg-slate-900/70 text-slate-200",
-    error: "border-rose-400/20 bg-rose-400/10 text-rose-100",
-  } as const;
-
   return (
-    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/45 p-5">
-      <div className="flex items-start gap-4">
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-100">
-          <Icon size={22} />
+    <Card padding="sm">
+      <div className="flex items-start gap-3">
+        <div
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"
+          aria-hidden="true"
+        >
+          <Icon size={20} />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-lg font-bold text-white">{title}</h2>
-            <span
-              className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${toneClasses[state.status]}`}
-            >
-              {state.label}
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-ink">{title}</h3>
+            <Badge tone={SOURCE_STATUS_TONE[state.status]}>{state.label}</Badge>
           </div>
-          <p className="mt-3 text-sm leading-6 text-slate-300">
+          <p className="mt-2 text-sm leading-6 text-muted wrap-anywhere">
             {state.description}
           </p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -341,13 +390,13 @@ function SectionHeader({
 }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/80">
+      <p className="text-xs font-semibold uppercase tracking-wider text-accent">
         {eyebrow}
       </p>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight text-white">
+      <h2 className="mt-2 text-xl font-semibold tracking-tight text-ink sm:text-2xl">
         {title}
       </h2>
-      <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
         {description}
       </p>
     </div>
@@ -363,9 +412,11 @@ function SkillCardGrid({
 }) {
   const [activeFilter, setActiveFilter] = useState<SkillFilter>("all");
   const [sortBy, setSortBy] = useState<SkillSort>("most-used");
+  const sortId = useId();
+  const filterLabelId = useId();
 
   if (items.length === 0) {
-    return <EmptyState text={emptyText} />;
+    return <EmptyNote text={emptyText} />;
   }
 
   const filterOptions = buildSkillFilterOptions(items);
@@ -376,63 +427,70 @@ function SkillCardGrid({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/40 p-4 sm:p-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              <ListFilter size={14} />
-              Filter skills
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {filterOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setActiveFilter(option.value)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                    activeFilter === option.value
-                      ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-100"
-                      : "border-slate-700 bg-slate-900/70 text-slate-300 hover:border-cyan-400/25 hover:text-white"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
+      <Card padding="sm" muted>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div role="group" aria-labelledby={filterLabelId}>
+            <p
+              id={filterLabelId}
+              className="inline-flex items-center gap-2 text-sm font-medium text-ink"
+            >
+              <ListFilter size={16} aria-hidden="true" />
+              Lọc theo nhóm
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {filterOptions.map((option) => {
+                const isActive = activeFilter === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setActiveFilter(option.value)}
+                    className={cn(
+                      "inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3 text-sm font-medium transition-colors",
+                      isActive
+                        ? "border-accent bg-accent text-on-accent"
+                        : "border-line-strong bg-surface text-ink hover:bg-sunken",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <label className="block min-w-[14rem]">
-            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              <ArrowDownWideNarrow size={14} />
-              Sort skills
-            </span>
-            <select
+          <Field htmlFor={sortId} label="Sắp xếp" className="lg:min-w-56">
+            <Select
+              id={sortId}
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value as SkillSort)}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm font-medium text-slate-100 outline-none transition focus:border-cyan-400/40"
             >
               {SKILL_SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
         </div>
 
-        <p className="mt-4 text-sm text-slate-400">
-          Hiển thị {filteredItems.length}/{items.length} skills trong view này.
+        <p className="mt-4 text-sm text-muted" aria-live="polite">
+          Hiển thị {filteredItems.length}/{items.length} kỹ năng.
         </p>
-      </div>
+      </Card>
 
       {filteredItems.length > 0 ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredItems.map((item) => (
-            <SkillSignalCard key={item.name} item={item} />
+            <li key={item.name}>
+              <SkillSignalCard item={item} />
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
-        <EmptyState text="Không có skill nào khớp filter hiện tại." />
+        <EmptyNote text="Không có kỹ năng nào khớp bộ lọc hiện tại." />
       )}
     </div>
   );
@@ -440,179 +498,131 @@ function SkillCardGrid({
 
 function SkillSignalCard({ item }: { item: SkillTechCard }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const evidencePanelId = useId();
   const hasEvidence = item.evidenceProjects.length > 0;
   const githubHref = item.primaryGithubHref;
   const usageValue =
     item.usagePercent !== null
       ? `${item.usagePercent.toFixed(1)}%`
       : item.projectCount > 0
-        ? "Project-backed"
-        : "Usage-based";
+        ? "Theo dự án"
+        : "Theo thời gian dùng";
   const usageDetail =
     item.usageText ??
     (item.projectCount > 0
-      ? "Duoc chung minh bang project evidence."
-      : "Dang cho them usage signal.");
-
-  const openGithubLink = () => {
-    if (!githubHref) {
-      return;
-    }
-
-    window.open(githubHref, "_blank", "noopener,noreferrer");
-  };
-
-  const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!githubHref) {
-      return;
-    }
-
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openGithubLink();
-    }
-  };
+      ? "Được chứng minh bằng dự án thực tế."
+      : "Đang chờ thêm dữ liệu sử dụng.");
 
   return (
-    <div
-      className="group relative"
-      tabIndex={0}
-      role={githubHref ? "link" : undefined}
-      aria-label={githubHref ? `Open GitHub for ${item.name}` : undefined}
-      onKeyDown={handleCardKeyDown}
-    >
-      <div className="pointer-events-none absolute -inset-1 rounded-[1.75rem] bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_56%),linear-gradient(135deg,_rgba(34,211,238,0.12),_transparent_40%,_rgba(16,185,129,0.12))] opacity-0 blur-xl transition duration-300 group-hover:opacity-100 group-focus-within:opacity-100" />
-      <div
-        className={`relative h-full rounded-[1.5rem] border border-slate-800 bg-[linear-gradient(180deg,_rgba(8,20,38,0.98)_0%,_rgba(4,12,26,0.98)_100%)] p-5 transition duration-300 group-hover:-translate-y-1 group-hover:border-cyan-300/45 group-hover:shadow-[0_28px_70px_-36px_rgba(34,211,238,0.55)] group-focus-within:-translate-y-1 group-focus-within:border-cyan-300/45 ${
-          githubHref ? "cursor-pointer" : ""
-        }`}
-        onClick={() => {
-          if (githubHref) {
-            openGithubLink();
-          }
-        }}
-      >
-        <div className="pointer-events-none absolute inset-0 rounded-[1.5rem] bg-[linear-gradient(135deg,_rgba(34,211,238,0.08),_transparent_34%,_rgba(16,185,129,0.08))] opacity-0 transition duration-300 group-hover:opacity-100 group-focus-within:opacity-100" />
-
-        <div className="relative flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">
-              {item.categoryLabel}
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
-              {item.sourceLabels.join(" + ")}
-            </span>
-          </div>
-
-          {githubHref ? (
-            <a
-              href={githubHref}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/12 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-400/18 hover:text-white"
-            >
-              <Github size={14} />
-              GitHub
-            </a>
-          ) : null}
+    <Card as="article" padding="sm" className="flex flex-col">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="accent">{item.categoryLabel}</Badge>
+          <Badge>{formatSourceLabels(item.sourceLabels)}</Badge>
         </div>
 
-        <div className="relative mt-4">
-          <p className="text-2xl font-black tracking-tight text-white transition group-hover:text-cyan-50 group-focus-within:text-cyan-50">
-            {item.name}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-300">{item.summary}</p>
-        </div>
-
-        <p className="relative mt-4 text-sm font-medium text-slate-200">
-          {buildSkillSignalSummary(item)}
-        </p>
-
-        <div className="relative mt-5 grid gap-3 sm:grid-cols-2">
-          <SignalMetric
-            label="Usage"
-            value={usageValue}
-            description={usageDetail}
-          />
-          <SignalMetric
-            label="Projects"
-            value={`${item.projectCount}`}
-            description={
-              item.projectCount > 0
-                ? `${item.projectCount} project evidence dang ho tro skill nay.`
-                : "Chua co project evidence duoc map."
-            }
-          />
-        </div>
-
-        {item.usagePercent !== null ? (
-          <div className="relative mt-5">
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="text-slate-300">Usage signal</span>
-              <span className="font-semibold text-white">
-                {item.usagePercent.toFixed(1)}%
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-slate-800">
-              <div
-                className="h-2 rounded-full bg-[linear-gradient(90deg,_#22d3ee_0%,_#34d399_100%)]"
-                style={{ width: `${Math.min(item.usagePercent, 100)}%` }}
-              />
-            </div>
-          </div>
+        {githubHref ? (
+          <a
+            href={githubHref}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Mở GitHub cho ${item.name} (tab mới)`}
+            className={buttonClasses({
+              variant: "ghost",
+              size: "sm",
+              className: "px-2",
+            })}
+          >
+            <Github size={16} aria-hidden="true" />
+            GitHub
+          </a>
         ) : null}
-
-        <div className="relative mt-5 flex flex-wrap gap-2">
-          {item.latestActivityLabel ? (
-            <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
-              Active {item.latestActivityLabel}
-            </span>
-          ) : null}
-          {hasEvidence ? (
-            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-100">
-              Hover để xem project evidence
-            </span>
-          ) : null}
-          {!hasEvidence && item.usageText ? (
-            <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-100">
-              Usage-only signal
-            </span>
-          ) : null}
-        </div>
-
-        {hasEvidence ? (
-          <div className="relative mt-5 flex flex-wrap gap-3 md:hidden">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsExpanded((value) => !value);
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/30 hover:text-white"
-            >
-              {isExpanded ? "Ẩn project evidence" : "Xem project evidence"}
-              <ArrowUpRight size={14} />
-            </button>
-          </div>
-        ) : null}
-
       </div>
 
-      {hasEvidence ? (
-        <div className="pointer-events-none absolute left-0 top-full z-20 mt-3 hidden w-[min(24rem,calc(100vw-3rem))] translate-y-2 opacity-0 transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 md:block">
-          <EvidencePanel items={item.evidenceProjects} />
+      <h3 className="mt-3 text-xl font-semibold tracking-tight text-ink">
+        {item.name}
+      </h3>
+      <p className="mt-1 text-sm leading-6 text-muted">{item.summary}</p>
+
+      <p className="mt-3 text-sm font-medium text-ink">
+        {buildSkillSignalSummary(item)}
+      </p>
+
+      <dl className="mt-4 grid grid-cols-2 gap-3">
+        <SignalMetric
+          label="Mức sử dụng"
+          value={usageValue}
+          description={usageDetail}
+        />
+        <SignalMetric
+          label="Dự án"
+          value={`${item.projectCount}`}
+          description={
+            item.projectCount > 0
+              ? `${item.projectCount} dự án làm minh chứng cho kỹ năng này.`
+              : "Chưa có dự án minh chứng."
+          }
+        />
+      </dl>
+
+      {item.usagePercent !== null ? (
+        <div className="mt-4" aria-hidden="true">
+          <div className="h-2 rounded-full bg-sunken">
+            <div
+              className="h-2 rounded-full bg-accent"
+              style={{ width: `${Math.min(item.usagePercent, 100)}%` }}
+            />
+          </div>
         </div>
       ) : null}
 
-      {hasEvidence && isExpanded ? (
-        <div className="mt-3 md:hidden">
-          <EvidencePanel items={item.evidenceProjects} />
+      {item.latestActivityLabel || (!hasEvidence && item.usageText) ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {item.latestActivityLabel ? (
+            <Badge>Hoạt động {item.latestActivityLabel}</Badge>
+          ) : null}
+          {!hasEvidence && item.usageText ? (
+            <Badge tone="warn">Chỉ có dữ liệu thời gian dùng</Badge>
+          ) : null}
         </div>
       ) : null}
-    </div>
+
+      {hasEvidence ? (
+        <div className="mt-4 border-t border-line pt-3">
+          <button
+            type="button"
+            aria-expanded={isExpanded}
+            aria-controls={evidencePanelId}
+            onClick={() => setIsExpanded((value) => !value)}
+            className={buttonClasses({
+              variant: "secondary",
+              size: "sm",
+              fullWidth: true,
+              className: "justify-between",
+            })}
+          >
+            <span>
+              {isExpanded ? "Ẩn minh chứng" : "Xem minh chứng"} (
+              {item.evidenceProjects.length})
+            </span>
+            <ChevronDown
+              size={16}
+              aria-hidden="true"
+              className={cn(
+                "transition-transform duration-150",
+                isExpanded && "rotate-180",
+              )}
+            />
+          </button>
+
+          <div id={evidencePanelId} hidden={!isExpanded} className="mt-3">
+            {isExpanded ? (
+              <EvidencePanel items={item.evidenceProjects} />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </Card>
   );
 }
 
@@ -620,10 +630,10 @@ type SkillFilter = "all" | SkillCategory;
 type SkillSort = "most-used" | "most-projects" | "recent" | "alphabetical";
 
 const SKILL_SORT_OPTIONS: Array<{ value: SkillSort; label: string }> = [
-  { value: "most-used", label: "Most used" },
-  { value: "most-projects", label: "Most projects" },
-  { value: "recent", label: "Recently active" },
-  { value: "alphabetical", label: "Alphabetical" },
+  { value: "most-used", label: "Dùng nhiều nhất" },
+  { value: "most-projects", label: "Nhiều dự án nhất" },
+  { value: "recent", label: "Hoạt động gần đây" },
+  { value: "alphabetical", label: "Theo bảng chữ cái" },
 ];
 
 function buildSkillFilterOptions(
@@ -634,7 +644,7 @@ function buildSkillFilterOptions(
   );
 
   return [
-    { value: "all" as const, label: "All" },
+    { value: "all" as const, label: "Tất cả" },
     ...filters.map(([value, label]) => ({
       value,
       label,
@@ -687,15 +697,15 @@ function sortSkillCards(items: SkillTechCard[], sortBy: SkillSort) {
 }
 
 function buildSkillSignalSummary(item: SkillTechCard) {
-  const parts = [`${item.projectCount} ${item.projectCount === 1 ? "project" : "projects"}`];
+  const parts = [`${item.projectCount} dự án`];
 
   if (item.usageText) {
     parts.push(item.usageText);
   }
 
-  parts.push(item.sourceLabels.join(" + "));
+  parts.push(formatSourceLabels(item.sourceLabels));
 
-  return parts.join(" • ");
+  return parts.join(" · ");
 }
 
 function SignalMetric({
@@ -708,42 +718,38 @@ function SignalMetric({
   description: string;
 }) {
   return (
-    <div className="rounded-[1.25rem] border border-slate-800 bg-slate-950/70 p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-        {label}
-      </p>
-      <p className="mt-3 text-2xl font-bold tracking-tight text-white">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+    <div className="rounded-lg bg-sunken p-3">
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="mt-1">
+        <span className="block font-mono text-lg font-semibold text-ink">
+          {value}
+        </span>
+        <span className="mt-1 block text-sm leading-5 text-muted">
+          {description}
+        </span>
+      </dd>
     </div>
   );
 }
 
 function EvidencePanel({ items }: { items: SkillEvidenceProject[] }) {
   return (
-    <div className="rounded-[1.25rem] border border-slate-700 bg-[#07101f] p-4 text-sm text-slate-200 shadow-2xl shadow-slate-950/50">
-      <div className="flex items-start gap-3">
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-100">
-          <FolderKanban size={18} />
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Project evidence
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-300">
-            Skill nay da duoc dung trong nhung project sau.
-          </p>
-        </div>
-      </div>
+    <div className="text-sm">
+      <p className="text-sm text-muted">
+        Kỹ năng này đã được dùng trong những dự án sau.
+      </p>
 
-      <div className="mt-4 space-y-3">
+      <ul className="mt-3 space-y-2">
         {items.slice(0, 6).map((project) => (
-          <EvidenceProjectRow key={`${project.href}-${project.name}`} item={project} />
+          <li key={`${project.href}-${project.name}`}>
+            <EvidenceProjectRow item={project} />
+          </li>
         ))}
-      </div>
+      </ul>
 
       {items.length > 6 ? (
-        <p className="mt-4 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-          +{items.length - 6} project evidence khac
+        <p className="mt-3 text-sm text-muted">
+          Và {items.length - 6} dự án minh chứng khác.
         </p>
       ) : null}
     </div>
@@ -752,59 +758,63 @@ function EvidencePanel({ items }: { items: SkillEvidenceProject[] }) {
 
 function EvidenceProjectRow({ item }: { item: SkillEvidenceProject }) {
   const content = (
-    <div className="rounded-[1.1rem] border border-slate-800 bg-slate-950/55 p-4 transition hover:border-cyan-400/25 hover:bg-slate-950/85">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-white">{item.name}</p>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
+    <>
+      <span className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block font-semibold text-ink">{item.name}</span>
+          <span className="mt-0.5 block text-xs font-medium text-accent">
             {item.kindLabel}
-          </p>
-        </div>
-        <ArrowUpRight size={15} className="shrink-0 text-slate-400" />
-      </div>
+          </span>
+        </span>
+        <ArrowUpRight
+          size={16}
+          className="shrink-0 text-muted"
+          aria-hidden="true"
+        />
+      </span>
 
       {item.supportingText ? (
-        <p className="mt-2 text-xs text-slate-400">{item.supportingText}</p>
+        <span className="mt-1 block text-sm text-muted">
+          {item.supportingText}
+        </span>
       ) : null}
 
       {item.description ? (
-        <p className="mt-3 text-sm leading-6 text-slate-300">
+        <span className="mt-2 block text-sm leading-6 text-muted">
           {compactEvidenceText(item.description)}
-        </p>
+        </span>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {item.badges.map((badge) => (
-          <span
-            key={`${item.name}-${badge}`}
-            className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-[11px] font-medium text-slate-200"
-          >
-            {badge}
-          </span>
-        ))}
-        {item.updatedAtLabel ? (
-          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
-            Updated {item.updatedAtLabel}
-          </span>
-        ) : null}
-      </div>
-    </div>
+      {item.badges.length > 0 || item.updatedAtLabel ? (
+        <span className="mt-2 flex flex-wrap gap-1.5">
+          {item.badges.map((badge) => (
+            <Badge key={`${item.name}-${badge}`}>{badge}</Badge>
+          ))}
+          {item.updatedAtLabel ? (
+            <Badge tone="success">Cập nhật {item.updatedAtLabel}</Badge>
+          ) : null}
+        </span>
+      ) : null}
+    </>
   );
+
+  const rowClass =
+    "block cursor-pointer rounded-lg border border-line bg-surface p-3 transition-colors hover:border-line-strong hover:bg-sunken";
 
   if (item.isExternal) {
     return (
-      <a
-        href={item.href}
-        target="_blank"
-        rel="noreferrer"
-        className="block"
-      >
+      <a href={item.href} target="_blank" rel="noreferrer" className={rowClass}>
         {content}
+        <span className="sr-only"> (mở tab mới)</span>
       </a>
     );
   }
 
-  return <Link href={item.href}>{content}</Link>;
+  return (
+    <Link href={item.href} className={rowClass}>
+      {content}
+    </Link>
+  );
 }
 
 function compactEvidenceText(value: string) {
@@ -819,36 +829,40 @@ function LanguagePanel({
   emptyText: string;
 }) {
   if (items.length === 0) {
-    return <EmptyState text={emptyText} />;
+    return <EmptyNote text={emptyText} />;
   }
 
   return (
-    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/45 p-5">
-      <div className="space-y-4">
+    <Card padding="sm">
+      <ul className="space-y-4">
         {items.map((item) => (
-          <div key={item.name}>
+          <li key={item.name}>
             <div className="flex items-center justify-between gap-4 text-sm">
-              <div className="flex items-center gap-3 text-white">
-                <BarChart3 size={16} className="text-cyan-200" />
+              <div className="flex items-center gap-2 text-ink">
+                <BarChart3
+                  size={16}
+                  className="text-accent"
+                  aria-hidden="true"
+                />
                 <span className="font-semibold">{item.name}</span>
               </div>
               <div className="text-right">
-                <span className="font-semibold text-white">
+                <span className="font-mono font-semibold text-ink">
                   {item.percent.toFixed(1)}%
                 </span>
-                <span className="ml-2 text-slate-400">{item.usageText}</span>
+                <span className="ml-2 text-muted">{item.usageText}</span>
               </div>
             </div>
-            <div className="mt-2 h-2 rounded-full bg-slate-800">
+            <div className="mt-2 h-2 rounded-full bg-sunken" aria-hidden="true">
               <div
-                className="h-2 rounded-full bg-[linear-gradient(90deg,_#38bdf8_0%,_#22c55e_100%)]"
+                className="h-2 rounded-full bg-accent"
                 style={{ width: `${Math.min(item.percent, 100)}%` }}
               />
             </div>
-          </div>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </Card>
   );
 }
 
@@ -860,39 +874,39 @@ function ActivityPanel({
   emptyText: string;
 }) {
   if (items.length === 0) {
-    return <EmptyState text={emptyText} />;
+    return <EmptyNote text={emptyText} />;
   }
 
   const icons = [Clock3, TimerReset, Layers3] as const;
 
   return (
-    <div className="grid gap-4">
+    <ul className="grid gap-3">
       {items.map((item, index) => {
         const Icon = icons[index] ?? Clock3;
 
         return (
-          <div
-            key={item.label}
-            className="rounded-[1.5rem] border border-slate-800 bg-slate-950/45 p-5"
-          >
-            <div className="flex items-start gap-4">
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-100">
+          <Card as="li" padding="sm" key={item.label}>
+            <div className="flex items-start gap-3">
+              <div
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"
+                aria-hidden="true"
+              >
                 <Icon size={18} />
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  {item.label}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-muted">{item.label}</p>
+                <p className="mt-1 break-words font-mono text-xl font-semibold text-ink">
+                  {item.value}
                 </p>
-                <p className="mt-2 text-2xl font-bold text-white">{item.value}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-300">
+                <p className="mt-1 text-sm leading-6 text-muted">
                   {item.description}
                 </p>
               </div>
             </div>
-          </div>
+          </Card>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
@@ -904,68 +918,64 @@ function ToolsGrid({
   emptyText: string;
 }) {
   if (items.length === 0) {
-    return <EmptyState text={emptyText} />;
+    return <EmptyNote text={emptyText} />;
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
-        <div
-          key={item.name}
-          className="rounded-[1.5rem] border border-slate-800 bg-[linear-gradient(180deg,_rgba(9,19,35,0.96)_0%,_rgba(5,12,24,0.96)_100%)] p-5"
-        >
+        <Card as="li" padding="sm" key={item.name}>
           <div className="flex items-center gap-3">
-            <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-100">
+            <div
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"
+              aria-hidden="true"
+            >
               <Wrench size={18} />
             </div>
-            <div>
-              <p className="text-lg font-bold text-white">{item.name}</p>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                {item.category}
-              </p>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-ink">{item.name}</h3>
+              <p className="text-sm text-muted">{item.category}</p>
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {item.projectCount > 0 ? (
-              <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
-                {item.projectCount} projects
-              </span>
-            ) : null}
-            {item.usageText ? (
-              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-100">
-                {item.usageText}
-              </span>
-            ) : null}
-          </div>
+          {item.projectCount > 0 || item.usageText ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {item.projectCount > 0 ? (
+                <Badge>{item.projectCount} dự án</Badge>
+              ) : null}
+              {item.usageText ? (
+                <Badge tone="success">{item.usageText}</Badge>
+              ) : null}
+            </div>
+          ) : null}
 
-          <p className="mt-4 text-sm leading-6 text-slate-300">{item.detail}</p>
-        </div>
+          <p className="mt-3 text-sm leading-6 text-muted">{item.detail}</p>
+        </Card>
       ))}
-    </div>
+    </ul>
   );
 }
 
 function SoftSkillsGrid({ items }: { items: SkillsSoftSkill[] }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
-        <div
-          key={item.name}
-          className="rounded-[1.5rem] border border-slate-800 bg-[linear-gradient(180deg,_rgba(27,20,8,0.96)_0%,_rgba(18,13,5,0.96)_100%)] p-5"
-        >
+        <Card as="li" padding="sm" key={item.name}>
           <div className="flex items-center gap-3">
-            <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/12 text-amber-100">
+            <div
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warn-soft text-warn"
+              aria-hidden="true"
+            >
               <BookOpenCheck size={18} />
             </div>
-            <h3 className="text-lg font-bold text-white">{item.name}</h3>
+            <h3 className="text-base font-semibold text-ink">{item.name}</h3>
           </div>
-          <p className="mt-4 text-sm leading-7 text-slate-300">
+          <p className="mt-3 text-sm leading-6 text-muted">
             {item.description}
           </p>
-        </div>
+        </Card>
       ))}
-    </div>
+    </ul>
   );
 }
 
@@ -977,75 +987,71 @@ function ProjectSpotlightGrid({
   emptyText: string;
 }) {
   if (items.length === 0) {
-    return <EmptyState text={emptyText} />;
+    return <EmptyNote text={emptyText} />;
   }
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => (
-        <div
-          key={item.name}
-          className="rounded-[1.5rem] border border-slate-800 bg-slate-950/45 p-5"
-        >
+        <Card as="li" padding="sm" key={item.name} interactive>
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 text-xl font-bold text-white transition hover:text-cyan-200"
-              >
-                {item.name}
-                <ArrowUpRight size={16} />
-              </a>
-              <p className="mt-2 text-sm text-slate-300">
-                {item.description || "Repo này chưa có description."}
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-ink">
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 break-all transition-colors hover:text-accent"
+                >
+                  {item.name}
+                  <ArrowUpRight size={16} aria-hidden="true" />
+                  <span className="sr-only"> (mở tab mới)</span>
+                </a>
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                {item.description || "Repo này chưa có mô tả."}
               </p>
             </div>
-            <span className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-200">
-              {item.updatedAtLabel}
-            </span>
+            <Badge className="shrink-0">{item.updatedAtLabel}</Badge>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {item.primaryLanguage ? (
-              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-100">
-                {item.primaryLanguage}
-              </span>
-            ) : null}
-            {item.homepageUrl ? (
-              <a
-                href={item.homepageUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-100 transition hover:border-emerald-300/40 hover:text-white"
-              >
-                Deploy
-                <ArrowUpRight size={12} />
-              </a>
-            ) : null}
-          </div>
+          {item.primaryLanguage || item.homepageUrl ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {item.primaryLanguage ? (
+                <Badge tone="accent">{item.primaryLanguage}</Badge>
+              ) : null}
+              {item.homepageUrl ? (
+                <a
+                  href={item.homepageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-accent-hover"
+                >
+                  Bản triển khai
+                  <ArrowUpRight size={14} aria-hidden="true" />
+                  <span className="sr-only"> (mở tab mới)</span>
+                </a>
+              ) : null}
+            </div>
+          ) : null}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {item.techNames.slice(0, 6).map((tech) => (
-              <span
-                key={`${item.name}-${tech}`}
-                className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-xs font-medium text-slate-200"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
-        </div>
+          {item.techNames.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {item.techNames.slice(0, 6).map((tech) => (
+                <Badge key={`${item.name}-${tech}`}>{tech}</Badge>
+              ))}
+            </div>
+          ) : null}
+        </Card>
       ))}
-    </div>
+    </ul>
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+function EmptyNote({ text }: { text: string }) {
   return (
-    <div className="rounded-[1.5rem] border border-dashed border-slate-700 bg-slate-950/35 px-5 py-8 text-sm leading-7 text-slate-400">
+    <p className="rounded-xl border border-dashed border-line-strong bg-surface px-5 py-6 text-sm leading-6 text-muted">
       {text}
-    </div>
+    </p>
   );
 }

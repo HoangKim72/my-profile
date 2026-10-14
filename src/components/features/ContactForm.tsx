@@ -3,11 +3,19 @@
 "use client";
 
 import { useState } from "react";
+import { AlertCircle, CheckCircle2, Send } from "lucide-react";
 import {
   contactMessageSchema,
   ContactMessageInput,
 } from "@/lib/validators/contact";
 import type { ContactActionResult } from "@/actions/contact";
+import {
+  Button,
+  Field,
+  Input,
+  Textarea,
+  fieldDescribedBy,
+} from "@/components/ui";
 
 const EMPTY_FORM = {
   name: "",
@@ -17,6 +25,11 @@ const EMPTY_FORM = {
   website: "",
 };
 
+type VisibleField = "name" | "email" | "subject" | "message";
+type FieldErrors = Partial<Record<VisibleField, string>>;
+
+const VISIBLE_FIELDS: VisibleField[] = ["name", "email", "subject", "message"];
+
 interface ContactFormProps {
   onSubmit: (data: ContactMessageInput) => Promise<ContactActionResult>;
 }
@@ -24,6 +37,7 @@ interface ContactFormProps {
 export function ContactForm({ onSubmit }: ContactFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSent, setIsSent] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
 
@@ -32,6 +46,9 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) =>
+      name in prev ? { ...prev, [name]: undefined } : prev,
+    );
     setError(null);
     setIsSent(false);
   };
@@ -40,13 +57,28 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setFieldErrors({});
     setIsSent(false);
 
     try {
       const parsed = contactMessageSchema.safeParse(formData);
 
       if (!parsed.success) {
-        setError(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
+        const nextErrors: FieldErrors = {};
+        for (const issue of parsed.error.issues) {
+          const key = issue.path[0];
+          if (
+            typeof key === "string" &&
+            (VISIBLE_FIELDS as string[]).includes(key) &&
+            !nextErrors[key as VisibleField]
+          ) {
+            nextErrors[key as VisibleField] = issue.message;
+          }
+        }
+        setFieldErrors(nextErrors);
+        if (Object.keys(nextErrors).length === 0) {
+          setError(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
+        }
         return;
       }
 
@@ -66,19 +98,42 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="p-4 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded-lg">
-          {error}
-        </div>
-      )}
+  const controlProps = (id: VisibleField, hint?: string) => ({
+    id,
+    name: id,
+    value: formData[id],
+    onChange: handleChange,
+    invalid: Boolean(fieldErrors[id]),
+    "aria-describedby": fieldDescribedBy(id, {
+      hint,
+      error: fieldErrors[id],
+    }),
+    required: true,
+  });
 
-      {isSent && (
-        <div className="p-4 bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-100 rounded-lg">
-          Đã gửi tin nhắn. Mình sẽ phản hồi sớm nhất có thể.
-        </div>
-      )}
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <div aria-live="polite">
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"
+          >
+            <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {isSent && (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-lg border border-success/30 bg-success-soft p-3 text-sm text-success"
+          >
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>Đã gửi tin nhắn. Mình sẽ phản hồi sớm nhất có thể.</span>
+          </div>
+        )}
+      </div>
 
       <div className="hidden" aria-hidden="true">
         <label htmlFor="website">Website</label>
@@ -93,77 +148,66 @@ export function ContactForm({ onSubmit }: ContactFormProps) {
         />
       </div>
 
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium mb-2">
-          Name
-        </label>
-        <input
-          type="text"
-          id="name"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          placeholder="Your name"
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field htmlFor="name" label="Họ tên" error={fieldErrors.name} required>
+          <Input
+            type="text"
+            placeholder="Tên của bạn"
+            autoComplete="name"
+            {...controlProps("name")}
+          />
+        </Field>
+
+        <Field
+          htmlFor="email"
+          label="Email"
+          error={fieldErrors.email}
           required
-        />
+        >
+          <Input
+            type="email"
+            placeholder="ban@example.com"
+            autoComplete="email"
+            {...controlProps("email")}
+          />
+        </Field>
       </div>
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium mb-2">
-          Email
-        </label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          placeholder="your@email.com"
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-
-      <div>
-        <label htmlFor="subject" className="block text-sm font-medium mb-2">
-          Subject
-        </label>
-        <input
-          type="text"
-          id="subject"
-          name="subject"
-          value={formData.subject}
-          onChange={handleChange}
-          placeholder="What is this about?"
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-
-      <div>
-        <label htmlFor="message" className="block text-sm font-medium mb-2">
-          Message
-        </label>
-        <textarea
-          id="message"
-          name="message"
-          value={formData.message}
-          onChange={handleChange}
-          placeholder="Your message..."
-          rows={6}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="btn-primary w-full text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+      <Field
+        htmlFor="subject"
+        label="Tiêu đề"
+        error={fieldErrors.subject}
+        required
       >
-        {isLoading ? "Sending..." : "Send Message"}
-      </button>
+        <Input
+          type="text"
+          placeholder="Bạn muốn trao đổi về điều gì?"
+          {...controlProps("subject")}
+        />
+      </Field>
+
+      <Field
+        htmlFor="message"
+        label="Nội dung"
+        hint="Ít nhất 10 ký tự."
+        error={fieldErrors.message}
+        required
+      >
+        <Textarea
+          placeholder="Nội dung tin nhắn…"
+          rows={6}
+          {...controlProps("message", "Ít nhất 10 ký tự.")}
+        />
+      </Field>
+
+      <Button
+        type="submit"
+        fullWidth
+        loading={isLoading}
+        leftIcon={<Send size={16} aria-hidden="true" />}
+      >
+        {isLoading ? "Đang gửi…" : "Gửi tin nhắn"}
+      </Button>
     </form>
   );
 }
