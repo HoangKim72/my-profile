@@ -52,7 +52,7 @@ src/components/home/ToolsSection.tsx     # thêm thẻ công cụ
 ```
 
 **`SpeedTestTool`** giữ state `idle → loading-lib → running ⇄ paused → done | error`.
-- Khi bấm "Bắt đầu": `const { default: SpeedTest } = await import("@cloudflare/speedtest")`, tạo `new SpeedTest({ autoStart: true, measurements: MEASUREMENTS })`.
+- Khi bấm "Bắt đầu": `const { default: SpeedTest } = await import("@cloudflare/speedtest")`, tạo `new SpeedTest(ENGINE_OPTIONS)` với `autoStart: true`, `measurements: MEASUREMENTS` và **`logAimApiUrl: null`** (mặc định thư viện gửi kết quả về `speed.cloudflare.com/__results`; tắt để đúng quyết định "không lưu gì").
 - `onResultsChange({ type })`: đọc `results.getSummary()` để cập nhật 4 ô; khi `type` của một hạng mục đổi sang hạng mục khác thì đẩy thông báo `aria-live`.
 - `onFinish(results)`: lấy `getSummary()` + `getScores()` → state `done`.
 - `onError(message)`: state `error`, giữ summary hiện có.
