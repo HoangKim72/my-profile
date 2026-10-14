@@ -16,7 +16,6 @@ export default function SpeedTestPage() {
       <PageHeader
         eyebrow="Công cụ"
         title="Kiểm tra tốc độ mạng"
-        description={DESCRIPTION}
       />
       <div className="mt-8">
         <SpeedTestTool />

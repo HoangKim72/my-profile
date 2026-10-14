@@ -19,9 +19,6 @@ export async function ResourcesSection() {
           >
             Kho tài liệu
           </h2>
-          <p className="mt-1 text-sm leading-6 text-muted">
-            Tài liệu môn học mới nhất, đóng gói ZIP sẵn để tải về.
-          </p>
         </div>
         <Link
           href="/projects"

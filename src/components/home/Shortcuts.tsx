@@ -5,19 +5,16 @@ const SHORTCUTS = [
   {
     href: "/about",
     title: "Giới thiệu",
-    description: "Mình là ai và đang làm gì.",
     icon: UserRound,
   },
   {
     href: "/cv",
     title: "CV",
-    description: "Kinh nghiệm, học vấn và kỹ năng.",
     icon: FileText,
   },
   {
     href: "/contact",
     title: "Liên hệ",
-    description: "Gửi lời nhắn hoặc góp ý cho mình.",
     icon: Mail,
   },
 ] as const;
@@ -29,7 +26,7 @@ export function Shortcuts() {
         Tìm hiểu thêm
       </h2>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {SHORTCUTS.map(({ href, title, description, icon: Icon }) => (
+        {SHORTCUTS.map(({ href, title, icon: Icon }) => (
           <li key={href}>
             <Link
               href={href}
@@ -41,13 +38,8 @@ export function Shortcuts() {
               >
                 <Icon size={20} />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-ink">
-                  {title}
-                </span>
-                <span className="block text-sm leading-6 text-muted">
-                  {description}
-                </span>
+              <span className="min-w-0 flex-1 text-sm font-semibold text-ink">
+                {title}
               </span>
               <ArrowRight
                 size={16}

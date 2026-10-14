@@ -340,8 +340,7 @@ export function SpeedTestTool() {
             <Gauge size={28} />
           </span>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted">
-            Mỗi lần đo dùng tối đa khoảng {MAX_MEGABYTES} MB dữ liệu. Nên dùng
-            wifi nếu đang dùng 4G/5G.
+            Mỗi lần đo dùng tối đa khoảng {MAX_MEGABYTES} MB dữ liệu.
           </p>
           <div className="mt-6 flex justify-center">
             <Button
@@ -478,10 +477,6 @@ export function SpeedTestTool() {
           >
             Đánh giá chất lượng
           </h2>
-          <p className="mt-1 text-sm leading-6 text-muted">
-            Theo thang AIM của Cloudflare, giả định mạng không mất gói vì công
-            cụ chưa đo chỉ số này.
-          </p>
           {qualityNote && (
             <p className="mt-2 text-sm leading-6 text-ink">{qualityNote}</p>
           )}
@@ -506,10 +501,6 @@ export function SpeedTestTool() {
         </Card>
       )}
 
-      <p className="text-xs leading-5 text-muted">
-        Đo bằng mạng lưới của Cloudflare. Kết quả phụ thuộc thiết bị, trình
-        duyệt và các ứng dụng khác đang dùng mạng.
-      </p>
     </div>
   );
 }
