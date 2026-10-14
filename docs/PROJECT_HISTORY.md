@@ -608,7 +608,8 @@ Kiểm tra:
 
 Việc còn treo:
 
-- xem lại dashboard và các trang có dữ liệu thật trên preview Vercel, cả 2 theme
+- xem lại dashboard trên preview Vercel (cần đăng nhập); các trang public đã kiểm tra với dữ liệu thật, cả 2 theme, sau khi restore Supabase (project bị pause) và redeploy preview
+- đổi mật khẩu database (đã lộ trong phiên làm việc) rồi cập nhật `.env.local` và biến môi trường Vercel
 - `getPublicResourceFacets` và `getProjectBySlug` không báo lỗi: facets lỗi thì dropdown rỗng, chi tiết lỗi DB thì thành 404
 - trang tool lọc mic vẫn tự nạp font riêng (trùng với root layout), có thể bỏ
 
