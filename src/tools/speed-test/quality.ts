@@ -30,6 +30,51 @@ export function toQualityLevel(name: string | undefined): QualityLevel {
   return (name && LEVEL_BY_CLASSIFICATION[name]) || "unknown";
 }
 
+// @cloudflare/speedtest 1.14.2 scores an unmeasured packet loss as 0 points,
+// while 0% loss earns 10. We skip packet loss (it needs our own TURN server),
+// so add those points back and reclassify with the engine's own thresholds
+// (aimExperiencesDefs in dist/speedtest.js). Re-check when upgrading.
+const ASSUMED_PACKET_LOSS_POINTS = 10;
+
+const POINT_THRESHOLDS: Record<ExperienceKey, readonly number[]> = {
+  streaming: [15, 20, 40, 60],
+  gaming: [5, 15, 25, 30],
+  rtc: [5, 15, 25, 40],
+};
+
+const CLASSIFICATIONS = ["bad", "poor", "average", "good", "great"] as const;
+
+export function rescoreAssumingNoPacketLoss(
+  scores: Scores | undefined,
+): Scores | undefined {
+  if (!scores) {
+    return undefined;
+  }
+
+  const rescored: Scores = { ...scores };
+
+  for (const { key } of EXPERIENCES) {
+    const score = scores[key];
+
+    if (!score) {
+      continue;
+    }
+
+    const points = score.points + ASSUMED_PACKET_LOSS_POINTS;
+    const classificationIdx = POINT_THRESHOLDS[key].filter(
+      (threshold) => points >= threshold,
+    ).length;
+
+    rescored[key] = {
+      points,
+      classificationIdx,
+      classificationName: CLASSIFICATIONS[classificationIdx],
+    };
+  }
+
+  return rescored;
+}
+
 export function getExperienceQualities(scores: Scores | undefined) {
   return EXPERIENCES.map(({ key, label }) => ({
     key,

@@ -4,6 +4,7 @@ import type { ClassificationName, Scores } from "@cloudflare/speedtest";
 import {
   buildResultText,
   getExperienceQualities,
+  rescoreAssumingNoPacketLoss,
   toQualityLevel,
 } from "@/tools/speed-test/quality";
 
@@ -35,6 +36,24 @@ describe("speed test quality", () => {
       getExperienceQualities(undefined).map((row) => row.level),
       ["unknown", "unknown", "unknown"],
     );
+  });
+
+  it("rescores assuming no packet loss", () => {
+    // Engine gives 0 packet-loss points when unmeasured; full marks are 10
+    const rescored = rescoreAssumingNoPacketLoss({
+      gaming: { points: 10, classificationIdx: 1, classificationName: "poor" },
+      streaming: { points: 55, classificationIdx: 3, classificationName: "good" },
+      rtc: { points: 0, classificationIdx: 0, classificationName: "bad" },
+    } satisfies Scores);
+
+    assert.deepEqual(rescored?.gaming, {
+      points: 20,
+      classificationIdx: 2,
+      classificationName: "average",
+    });
+    assert.equal(rescored?.streaming.classificationName, "great");
+    assert.equal(rescored?.rtc.classificationName, "poor");
+    assert.equal(rescoreAssumingNoPacketLoss(undefined), undefined);
   });
 
   it("builds copy text", () => {
