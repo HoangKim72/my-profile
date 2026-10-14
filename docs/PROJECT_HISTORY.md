@@ -613,6 +613,21 @@ Việc còn treo:
 - `getPublicResourceFacets` và `getProjectBySlug` không báo lỗi: facets lỗi thì dropdown rỗng, chi tiết lỗi DB thì thành 404
 - trang tool lọc mic vẫn tự nạp font riêng (trùng với root layout), có thể bỏ
 
+#### Công cụ kiểm tra tốc độ mạng (cùng ngày `2026-10-14`)
+
+Chủ dự án chốt: công cụ **công khai cho mọi người**, đo bằng thư viện chính thức `@cloudflare/speedtest` (phương án A, bỏ phương án tự dựng máy chủ đo trên Vercel vì giới hạn upload 4,5 MB, máy chủ ở Mỹ và tốn băng thông). Spec và plan ở `docs/superpowers/`.
+
+Đã làm (nhánh `feat/speed-test`):
+
+- `src/tools/speed-test/` (config, format, quality) có unit test; trang `/tools/speed-test`; thẻ thứ hai trong khối Công cụ ở trang chủ (lưới 2 cột)
+- giới hạn dữ liệu ≈ 146 MB mỗi lần đo; tắt gửi kết quả về Cloudflare (`logAimApiUrl: null`); không đo mất gói
+- phát hiện khi đo thật: thư viện tính mất gói chưa đo là 0 điểm nên mọi đánh giá bị hạ một bậc (mạng 87 Mbps, ping 42 ms ra "Chơi game: Kém") → chấm lại với giả định không mất gói, ghi chú trên giao diện
+
+Kiểm tra:
+
+- unit test 11 test mới; `npm run lint`, `npm test`, `next build` pass
+- đo thật trên dev server: bấm đúp chỉ tạo một lượt đo; Dừng / Tiếp tục / Đo lại / Sao chép hoạt động; đếm request: 92 request, lượt tải xuống lớn nhất 25 MB, tổng 99 MB xuống + 47 MB lên, 0 request `__results`; 375px tối và 1024px sáng không tràn ngang; rời trang khi đang đo không lỗi console
+
 ## 9. Sơ đồ hiểu nhanh dự án
 
 ### Lớp public

@@ -37,6 +37,7 @@ Quy ước nghiệp vụ đã chốt:
 | xlsx | 0.18.5 | Đọc Excel trong tool mic (chạy ở client) |
 | jszip | 3.10 | Nén thư mục thành ZIP ở client trước khi upload |
 | lucide-react | 0.336 | Icon |
+| @cloudflare/speedtest | 1.14.2 (ghim cứng) | Đo tốc độ mạng trong trình duyệt (tool kiểm tra tốc độ mạng) |
 
 Deploy: **Vercel**. Database và storage: **Supabase**.
 
@@ -47,7 +48,7 @@ Deploy: **Vercel**. Database và storage: **Supabase**.
 ```
 app/
   layout.tsx                    # Root layout: font, lang="vi", script theme chạy trước khi vẽ trang
-  (public)/                     # layout (Navbar + Footer), trang chủ, about, cv, skills, contact, projects, projects/[slug], tools/mic-filter
+  (public)/                     # layout (Navbar + Footer), trang chủ, about, cv, skills, contact, projects, projects/[slug], tools/mic-filter, tools/speed-test
   (auth)/                       # layout tối giản, login, register, auth/callback, auth/auth-code-error
   (dashboard)/dashboard/        # layout (requireAuth), page, projects, projects/new, projects/[id]/edit, settings
   api/
@@ -63,7 +64,7 @@ src/
     home/                       # ToolsSection, ResourcesSection, Shortcuts (trang chủ)
     layout/                     # Navbar, NavbarClient, AccountMenu, Footer, Sidebar (+ DashboardMobileNav), SiteLogo, LogoutButton
     projects/                   # ProjectCard, ProjectForm
-    tools/                      # MicFilterWorkspace, MicFilterTool, ShiftSummaryPanel
+    tools/                      # MicFilterWorkspace, MicFilterTool, ShiftSummaryPanel, SpeedTestTool
     ui/                         # Button, Field/Input/Select/Textarea, Card, Badge, PageHeader, EmptyState, ErrorState, ThemeToggle, FullscreenLoader
   lib/
     auth/                       # check-auth, permissions, user-record
@@ -84,6 +85,9 @@ src/
                                 #   constants (giá trị mặc định)
                                 #   session (localStorage)
                                 #   export (bảng trưa cho ảnh)
+  tools/speed-test/             # Logic thuần của tool tốc độ mạng:
+                                #   config (danh sách phép đo, giới hạn dữ liệu)
+                                #   format (Mbps, ms), quality (đánh giá, văn bản sao chép)
   lib/tools/mic-filter-settings.ts # Đọc cấu hình tool mic từ DB (server-only)
   types/index.ts                # Kiểu dùng chung
 prisma/
@@ -367,6 +371,16 @@ Form hiển thị lỗi từ server và thông báo khi gửi thành công. Hi�
 - **Quy ước**: chỉ dùng `rounded-lg|xl|2xl|full`, `shadow-sm|md`; hover chỉ đổi màu, không dịch chuyển; toàn bộ chữ UI là tiếng Việt có dấu.
 - **Layout**: `Navbar`/`Footer` chỉ có ở `(public)`. Dashboard chỉ có `Sidebar` (desktop) và `DashboardMobileNav` (mobile). `Footer` đọc liên hệ thật từ `getSiteProfile()` và tự ẩn khi DB lỗi.
 - Trang Kỹ năng không in lỗi thô của nguồn dữ liệu ra trang; lỗi gốc ghi bằng `console.error` phía server.
+
+### 7.7. Kiểm tra tốc độ mạng (`/tools/speed-test`, từ `2026-10-14`)
+
+Công cụ công khai, không cần đăng nhập. Spec: `docs/superpowers/specs/2026-10-14-speed-test-design.md`.
+
+- **Đo trong trình duyệt** bằng `@cloudflare/speedtest` (tải bằng `import()` khi bấm "Bắt đầu đo"), gọi thẳng `speed.cloudflare.com/__down` và `__up`. Không qua server Next.js, không ghi DB.
+- **Không lưu kết quả**: `ENGINE_OPTIONS.logAimApiUrl = null` (mặc định thư viện gửi kết quả về `speed.cloudflare.com/__results`).
+- **Giới hạn dữ liệu** (`src/tools/speed-test/config.ts`): bỏ các lượt 50/100/250 MB của cấu hình mặc định; tối đa ≈ 99 MB tải xuống + 47 MB tải lên. Mạng chậm dùng ít hơn vì thư viện dừng tăng kích thước khi một lượt ≥ 1 giây.
+- **Không đo mất gói** (cần TURN server riêng). Thư viện tính mất gói chưa đo là 0 điểm AIM, nên `rescoreAssumingNoPacketLoss()` cộng lại 10 điểm và xếp loại lại theo ngưỡng của thư viện; giao diện ghi rõ giả định này. **Khi nâng cấp thư viện phải kiểm tra lại ngưỡng** trong `quality.ts`.
+- **Giao diện** (`SpeedTestTool`): trạng thái `idle → loading → running ⇄ paused → done | error`; 4 ô Tải xuống / Tải lên / Ping / Độ dao động cập nhật trực tiếp; đánh giá Xem video / Chơi game / Gọi video (Tốt / Khá / Kém); Đo lại dùng `restart()` trên cùng một engine; rời trang thì `pause()`; vùng `aria-live` chỉ báo khi một hạng mục đo xong.
 
 ---
 
