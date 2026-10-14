@@ -3,24 +3,25 @@
 import type { Metadata } from "next";
 import { submitContactMessage } from "@/actions/contact";
 import { ContactForm } from "@/components/features/ContactForm";
+import { Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "Contact",
-  description: "Get in touch with me",
+  title: "Liên hệ",
+  description: "Gửi câu hỏi, góp ý hoặc lời mời hợp tác.",
 };
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen py-20">
-      <div className="container-custom max-w-2xl">
-        <h1 className="text-5xl font-bold mb-6 text-gradient">Get in Touch</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-12">
-          Have a question or want to collaborate? I&apos;d love to hear from you.
-          Fill out the form below and I&apos;ll get back to you as soon as possible.
-        </p>
+    <div className="container-custom max-w-2xl py-10 sm:py-14">
+      <PageHeader
+        eyebrow="Liên hệ"
+        title="Gửi tin nhắn cho mình"
+        description="Bạn có câu hỏi hoặc muốn hợp tác? Điền form bên dưới, mình sẽ phản hồi sớm nhất có thể."
+      />
 
+      <Card padding="lg" className="mt-8">
         <ContactForm onSubmit={submitContactMessage} />
-      </div>
+      </Card>
     </div>
   );
 }

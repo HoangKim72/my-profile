@@ -6,17 +6,21 @@ import {
   type ChangeEvent,
   type FormEvent,
   type InputHTMLAttributes,
-  type ReactNode,
 } from "react";
 import JSZip from "jszip";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertCircle, Download, FolderOpen, UploadCloud } from "lucide-react";
 import {
-  Download,
-  FolderOpen,
-  Loader,
-  UploadCloud,
-} from "lucide-react";
+  Badge,
+  Button,
+  ButtonLink,
+  Card,
+  Field,
+  Input,
+  Textarea,
+  cn,
+  fieldDescribedBy,
+} from "@/components/ui";
 import { createProject, updateProject } from "@/actions/projects";
 import {
   formatFileSize,
@@ -53,8 +57,8 @@ interface ResourceFields {
   status: ResourceStatus;
 }
 
-const INPUT_CLASS =
-  "w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800";
+/** Which input a client-side validation error belongs to. */
+type ErrorTarget = keyof ResourceFields | "folder";
 
 interface ProjectArchiveSummary {
   fileName: string;
@@ -87,6 +91,7 @@ export function ProjectForm({
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [errorTarget, setErrorTarget] = useState<ErrorTarget | null>(null);
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [isPreparingArchive, setIsPreparingArchive] = useState(false);
 
@@ -102,6 +107,7 @@ export function ProjectForm({
   ) => {
     setFields((current) => ({ ...current, [key]: value }));
     setError(null);
+    setErrorTarget(null);
   };
 
   const handleFolderChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +116,7 @@ export function ProjectForm({
     setSelectedFiles(files);
     setSelectedFolderName(files.length > 0 ? getRootFolderName(files) : null);
     setError(null);
+    setErrorTarget(null);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -119,16 +126,19 @@ export function ProjectForm({
     const fieldError = validateFields(fields);
 
     if (fieldError) {
-      setError(fieldError);
+      setError(fieldError.message);
+      setErrorTarget(fieldError.field);
       return;
     }
 
     if (!project && selectedFiles.length === 0) {
       setError("Vui lòng chọn thư mục cần chia sẻ.");
+      setErrorTarget("folder");
       return;
     }
 
     setError(null);
+    setErrorTarget(null);
     setIsSavingProject(true);
 
     try {
@@ -138,7 +148,7 @@ export function ProjectForm({
         : await createProject(payload);
 
       if (!result.success || !result.project) {
-        throw new Error(result.error || "Không thể lưu project.");
+        throw new Error(result.error || "Không thể lưu tài liệu.");
       }
 
       if (selectedFiles.length > 0) {
@@ -176,7 +186,7 @@ export function ProjectForm({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Không thể lưu project lúc này.",
+          : "Không thể lưu tài liệu lúc này.",
       );
     } finally {
       setIsSavingProject(false);
@@ -184,173 +194,222 @@ export function ProjectForm({
     }
   };
 
+  const errorFor = (target: ErrorTarget) =>
+    errorTarget === target && error ? error : undefined;
+  const formError = error && !errorTarget ? error : null;
+  const tagList = parseResourceTags(fields.tags);
+
+  const titleError = errorFor("title");
+  const subjectError = errorFor("subjectName");
+  const semesterError = errorFor("semester");
+  const shortDescriptionError = errorFor("shortDescription");
+  const folderError = errorFor("folder");
+  const shortDescriptionHint = `${fields.shortDescription.trim().length}/500 ký tự, tối thiểu 10. Hiện trên thẻ ở danh sách.`;
+  const contentHint = "Không bắt buộc. Hiện ở trang chi tiết.";
+  const tagsHint = "Phân tách bằng dấu phẩy, ví dụ: Java, SQL, Đề thi.";
+
   return (
-    <form onSubmit={handleSubmit} className="card space-y-8 p-8">
-      {error && (
-        <div className="rounded-lg bg-red-100 p-4 text-red-800 dark:bg-red-900 dark:text-red-100">
-          {error}
-        </div>
-      )}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card as="section" aria-labelledby="resource-info-heading">
+        <h2
+          id="resource-info-heading"
+          className="text-lg font-semibold text-ink"
+        >
+          Thông tin tài liệu
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Môn học, kỳ học và tag dùng để lọc trên trang công khai. Tag cũng được
+          trang Kỹ năng dùng làm bằng chứng kỹ năng.
+        </p>
 
-      <section className="space-y-5">
-        <div>
-          <h2 className="text-2xl font-bold">Thông tin tài liệu</h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Môn học, kỳ học và tag dùng để lọc trên trang công khai. Tag cũng
-            được trang Skills dùng làm bằng chứng kỹ năng.
-          </p>
-        </div>
-
-        <Field label="Tên tài liệu *" htmlFor="title">
-          <input
-            id="title"
-            type="text"
-            value={fields.title}
-            onChange={(event) => updateField("title", event.target.value)}
-            placeholder="Ví dụ: Bài tập lớn Lập trình Web"
-            className={INPUT_CLASS}
-            maxLength={200}
+        <div className="mt-6 space-y-5">
+          <Field
+            label="Tên tài liệu"
+            htmlFor="title"
             required
-          />
-        </Field>
-
-        <div className="grid gap-5 md:grid-cols-2">
-          <Field label="Môn học *" htmlFor="subjectName">
-            <input
-              id="subjectName"
+            error={titleError}
+          >
+            <Input
+              id="title"
               type="text"
-              value={fields.subjectName}
+              value={fields.title}
+              onChange={(event) => updateField("title", event.target.value)}
+              placeholder="Ví dụ: Bài tập lớn Lập trình Web"
+              maxLength={200}
+              required
+              invalid={Boolean(titleError)}
+              aria-describedby={fieldDescribedBy("title", {
+                error: titleError,
+              })}
+            />
+          </Field>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field
+              label="Môn học"
+              htmlFor="subjectName"
+              required
+              error={subjectError}
+            >
+              <Input
+                id="subjectName"
+                type="text"
+                value={fields.subjectName}
+                onChange={(event) =>
+                  updateField("subjectName", event.target.value)
+                }
+                placeholder="Ví dụ: Lập trình Web"
+                maxLength={120}
+                required
+                invalid={Boolean(subjectError)}
+                aria-describedby={fieldDescribedBy("subjectName", {
+                  error: subjectError,
+                })}
+              />
+            </Field>
+            <Field
+              label="Kỳ học"
+              htmlFor="semester"
+              required
+              error={semesterError}
+            >
+              <Input
+                id="semester"
+                type="text"
+                value={fields.semester}
+                onChange={(event) =>
+                  updateField("semester", event.target.value)
+                }
+                placeholder="Ví dụ: HK1 2025-2026"
+                maxLength={60}
+                required
+                invalid={Boolean(semesterError)}
+                aria-describedby={fieldDescribedBy("semester", {
+                  error: semesterError,
+                })}
+              />
+            </Field>
+          </div>
+
+          <Field
+            label="Mô tả ngắn"
+            htmlFor="shortDescription"
+            required
+            hint={shortDescriptionHint}
+            error={shortDescriptionError}
+          >
+            <Textarea
+              id="shortDescription"
+              value={fields.shortDescription}
               onChange={(event) =>
-                updateField("subjectName", event.target.value)
+                updateField("shortDescription", event.target.value)
               }
-              placeholder="Ví dụ: Lập trình Web"
-              className={INPUT_CLASS}
-              maxLength={120}
+              rows={2}
+              maxLength={500}
+              placeholder="Tài liệu gồm slide, đề cương và bài tập có lời giải."
               required
+              invalid={Boolean(shortDescriptionError)}
+              aria-describedby={fieldDescribedBy("shortDescription", {
+                hint: shortDescriptionHint,
+                error: shortDescriptionError,
+              })}
             />
           </Field>
-          <Field label="Kỳ học *" htmlFor="semester">
-            <input
-              id="semester"
+
+          <Field label="Ghi chú chi tiết" htmlFor="content" hint={contentHint}>
+            <Textarea
+              id="content"
+              value={fields.content}
+              onChange={(event) => updateField("content", event.target.value)}
+              rows={5}
+              placeholder="Nội dung từng thư mục, cách dùng, nguồn tham khảo..."
+              aria-describedby={fieldDescribedBy("content", {
+                hint: contentHint,
+              })}
+            />
+          </Field>
+
+          <Field label="Tag" htmlFor="tags" hint={tagsHint}>
+            <Input
+              id="tags"
               type="text"
-              value={fields.semester}
-              onChange={(event) => updateField("semester", event.target.value)}
-              placeholder="Ví dụ: HK1 2025-2026"
-              className={INPUT_CLASS}
-              maxLength={60}
-              required
+              value={fields.tags}
+              onChange={(event) => updateField("tags", event.target.value)}
+              placeholder="Java, Spring Boot, Đề thi"
+              aria-describedby={fieldDescribedBy("tags", { hint: tagsHint })}
             />
+            {tagList.length > 0 && (
+              <ul className="flex flex-wrap gap-2" aria-label="Tag đã nhập">
+                {tagList.map((tag) => (
+                  <li key={tag}>
+                    <Badge tone="accent">{tag}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Field>
-        </div>
 
-        <Field
-          label="Mô tả ngắn *"
-          htmlFor="shortDescription"
-          hint={`${fields.shortDescription.trim().length}/500 ký tự, tối thiểu 10. Hiện trên thẻ ở danh sách.`}
-        >
-          <textarea
-            id="shortDescription"
-            value={fields.shortDescription}
-            onChange={(event) =>
-              updateField("shortDescription", event.target.value)
-            }
-            rows={2}
-            maxLength={500}
-            placeholder="Tài liệu gồm slide, đề cương và bài tập có lời giải."
-            className={INPUT_CLASS}
-            required
-          />
-        </Field>
-
-        <Field
-          label="Ghi chú chi tiết"
-          htmlFor="content"
-          hint="Không bắt buộc. Hiện ở trang chi tiết."
-        >
-          <textarea
-            id="content"
-            value={fields.content}
-            onChange={(event) => updateField("content", event.target.value)}
-            rows={5}
-            placeholder="Nội dung từng thư mục, cách dùng, nguồn tham khảo..."
-            className={INPUT_CLASS}
-          />
-        </Field>
-
-        <Field
-          label="Tag"
-          htmlFor="tags"
-          hint="Phân tách bằng dấu phẩy, ví dụ: Java, SQL, Đề thi."
-        >
-          <input
-            id="tags"
-            type="text"
-            value={fields.tags}
-            onChange={(event) => updateField("tags", event.target.value)}
-            placeholder="Java, Spring Boot, Đề thi"
-            className={INPUT_CLASS}
-          />
-          {parseResourceTags(fields.tags).length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {parseResourceTags(fields.tags).map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink">
+              Trạng thái
+            </legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {STATUS_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-sm transition-colors duration-150",
+                    fields.status === option.value
+                      ? "border-accent bg-accent-soft"
+                      : "border-line-strong bg-surface hover:bg-sunken",
+                  )}
                 >
-                  {tag}
-                </span>
+                  <input
+                    type="radio"
+                    name="status"
+                    value={option.value}
+                    checked={fields.status === option.value}
+                    onChange={() => updateField("status", option.value)}
+                    className="mt-1 h-4 w-4 cursor-pointer accent-accent"
+                  />
+                  <span>
+                    <span className="block font-medium text-ink">
+                      {option.label}
+                    </span>
+                    <span className="text-muted">{option.hint}</span>
+                  </span>
+                </label>
               ))}
             </div>
-          )}
-        </Field>
+          </fieldset>
+        </div>
+      </Card>
 
-        <fieldset>
-          <legend className="mb-2 block text-sm font-medium">Trạng thái</legend>
-          <div className="flex flex-wrap gap-3">
-            {STATUS_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
-                  fields.status === option.value
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40"
-                    : "border-gray-300 dark:border-gray-700"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="status"
-                  value={option.value}
-                  checked={fields.status === option.value}
-                  onChange={() => updateField("status", option.value)}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block font-medium">{option.label}</span>
-                  <span className="text-gray-600 dark:text-gray-400">
-                    {option.hint}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      </section>
-
-      <section className="space-y-4 border-t border-gray-200 pt-8 dark:border-gray-800">
+      <Card as="section" aria-labelledby="folder-heading">
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-blue-100 p-3 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
+          <span
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"
+            aria-hidden="true"
+          >
             <FolderOpen size={20} />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold">Shared Folder</h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Chọn nguyên folder cần chia sẻ. Nếu không chọn folder mới khi đang
-              sửa, hệ thống sẽ giữ nguyên file hiện tại.
+          </span>
+          <div className="min-w-0">
+            <h2 id="folder-heading" className="text-lg font-semibold text-ink">
+              Thư mục chia sẻ
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Chọn nguyên thư mục cần chia sẻ. Khi đang sửa, nếu không chọn thư
+              mục mới, hệ thống sẽ giữ nguyên file hiện tại.
             </p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-dashed border-gray-300 p-6 dark:border-gray-700">
+        <div
+          className={cn(
+            "mt-5 rounded-lg border border-dashed p-5",
+            folderError ? "border-danger" : "border-line-strong",
+          )}
+        >
           <input
             {...FOLDER_PICKER_ATTRIBUTES}
             ref={folderInputRef}
@@ -360,80 +419,92 @@ export function ProjectForm({
           />
 
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <h4 className="text-lg font-semibold">
+            <div className="min-w-0 space-y-1" id="folder-summary">
+              <p className="break-words text-base font-semibold text-ink">
                 {selectedFolderName || "Chưa chọn thư mục nào"}
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              </p>
+              <p className="text-sm text-muted">
                 {selectedFiles.length > 0
-                  ? `${selectedFiles.length} file • ${formatFileSize(totalSelectedBytes)} trước khi nén`
-                  : "Cấu trúc folder sẽ được giữ nguyên bên trong file ZIP."}
+                  ? `${selectedFiles.length} file · ${formatFileSize(totalSelectedBytes)} trước khi nén`
+                  : "Cấu trúc thư mục sẽ được giữ nguyên bên trong file ZIP."}
               </p>
             </div>
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => folderInputRef.current?.click()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              leftIcon={<UploadCloud size={18} aria-hidden="true" />}
+              aria-describedby={
+                folderError ? "folder-summary folder-error" : "folder-summary"
+              }
             >
-              <UploadCloud size={18} />
               {selectedFiles.length > 0 ? "Chọn lại thư mục" : "Chọn thư mục"}
-            </button>
+            </Button>
           </div>
+
+          {folderError && (
+            <p
+              id="folder-error"
+              role="alert"
+              className="mt-3 text-sm font-medium text-danger"
+            >
+              {folderError}
+            </p>
+          )}
         </div>
 
         {existingArchive && project && (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+          <Card muted padding="sm" className="mt-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  File hiện tại
-                </p>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {existingArchive.fileName} •{" "}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-ink">File hiện tại</p>
+                <p className="mt-1 break-words text-sm text-muted">
+                  {existingArchive.fileName} ·{" "}
                   {formatFileSize(existingArchive.sizeBytes)}
                 </p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                <p className="mt-1 text-sm text-muted">
                   Cập nhật:{" "}
                   {new Date(existingArchive.createdAt).toLocaleString("vi-VN")}
                 </p>
               </div>
 
-              <Link
+              <ButtonLink
                 href={`/api/projects/${project.id}/download`}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-white dark:border-gray-700 dark:hover:bg-gray-800"
+                variant="secondary"
+                size="sm"
+                leftIcon={<Download size={16} aria-hidden="true" />}
               >
-                <Download size={16} />
                 Tải file hiện tại
-              </Link>
+              </ButtonLink>
             </div>
-          </div>
+          </Card>
         )}
-      </section>
+      </Card>
 
-      <div className="flex flex-col gap-3 border-t border-gray-200 pt-6 dark:border-gray-800 sm:flex-row">
-        <button
-          type="submit"
-          disabled={isBusy}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      {formError && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger"
         >
-          {isBusy && <Loader size={16} className="animate-spin" />}
+          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <p>{formError}</p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button type="submit" loading={isBusy}>
           {isPreparingArchive
-            ? "Đang nén và upload..."
+            ? "Đang nén và tải lên..."
             : isSavingProject
               ? "Đang lưu tài liệu..."
               : project
                 ? "Cập nhật tài liệu"
                 : "Tạo tài liệu"}
-        </button>
+        </Button>
 
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-        >
+        <Button variant="secondary" onClick={() => router.back()}>
           Quay lại
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -445,7 +516,7 @@ const STATUS_OPTIONS: Array<{
   hint: string;
 }> = [
   { value: "PUBLISHED", label: "Công khai", hint: "Hiện ngay trên /projects" },
-  { value: "DRAFT", label: "Nháp", hint: "Chỉ thấy trong dashboard" },
+  { value: "DRAFT", label: "Nháp", hint: "Chỉ thấy trong bảng điều khiển" },
 ];
 
 function getInitialFields(project?: ProjectFormProject): ResourceFields {
@@ -461,21 +532,26 @@ function getInitialFields(project?: ProjectFormProject): ResourceFields {
   };
 }
 
-function validateFields(fields: ResourceFields) {
+function validateFields(
+  fields: ResourceFields,
+): { field: keyof ResourceFields; message: string } | null {
   if (fields.title.trim().length < 5) {
-    return "Tên tài liệu cần ít nhất 5 ký tự.";
+    return { field: "title", message: "Tên tài liệu cần ít nhất 5 ký tự." };
   }
 
   if (!fields.subjectName.trim()) {
-    return "Vui lòng nhập môn học.";
+    return { field: "subjectName", message: "Vui lòng nhập môn học." };
   }
 
   if (!fields.semester.trim()) {
-    return "Vui lòng nhập kỳ học.";
+    return { field: "semester", message: "Vui lòng nhập kỳ học." };
   }
 
   if (fields.shortDescription.trim().length < 10) {
-    return "Mô tả ngắn cần ít nhất 10 ký tự.";
+    return {
+      field: "shortDescription",
+      message: "Mô tả ngắn cần ít nhất 10 ký tự.",
+    };
   }
 
   return null;
@@ -501,30 +577,6 @@ function buildProjectPayload(
     status: fields.status,
     sharedUsers: [],
   };
-}
-
-function Field({
-  label,
-  htmlFor,
-  hint,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  hint?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium">
-        {label}
-      </label>
-      {children}
-      {hint && (
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
-      )}
-    </div>
-  );
 }
 
 async function createProjectArchive(files: File[], projectTitle: string) {

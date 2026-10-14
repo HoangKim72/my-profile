@@ -586,6 +586,33 @@ Kiểm tra:
 
 Merge nhánh `feat/hardening-and-resources` vào `main` để deploy.
 
+### `2026-10-14`
+
+#### Đánh giá và làm lại UI/UX toàn site
+
+Kế hoạch và kết quả đánh giá ở [UI_UX_AUDIT_PLAN.md](UI_UX_AUDIT_PLAN.md). Chủ dự án chốt: **Việt hoá 100%**, trang chủ đặt **Công cụ trước**, có **nút sáng/tối thủ công**.
+
+Đã làm (chia 5 gói việc):
+
+- WS0 nền tảng: token màu chung, dark mode theo `data-theme` + `ThemeToggle`, font Be Vietnam Pro toàn site, `lang="vi"`, focus ring, reduced-motion, bộ primitives trong `src/components/ui/`
+- WS1 khung trang: tách `Navbar`/`Footer` sang layout `(public)`; layout `(auth)` tối giản; navbar 64px với 7 mục tiếng Việt, menu tài khoản, menu mobile đóng bằng Esc; footer dùng dữ liệu thật (bỏ link `#`); sidebar dashboard gọn + ngăn kéo trên mobile
+- WS2 trang chủ: chuyển vào `(public)`, bỏ 15 ô placeholder; thứ tự Giới thiệu → Công cụ (`#cong-cu`) → Kho tài liệu mới nhất → lối tắt; xoá `Hero.tsx`
+- WS3 trang công khai và WS4 dashboard: dùng primitives, thêm dấu cho toàn bộ tiếng Việt không dấu, lỗi form hiện cạnh ô nhập, `ErrorState`/`EmptyState`, bảng tài liệu chuyển thành thẻ trên mobile, minh chứng kỹ năng mở bằng nút thay cho hover
+- WS5 kiểm tra: sửa trang Kỹ năng tràn ngang trên mobile do in lỗi thô (stack Prisma, JSON GitHub) — giờ hiện thông báo thân thiện; ẩn link "Cập nhật hồ sơ công khai" với người không phải admin; thêm tiêu đề tab cho Đăng nhập/Đăng ký
+
+Kiểm tra:
+
+- `npm run lint`, `npm test` (59 test), `tsc`, `next build`: đều pass
+- trình duyệt: không tràn ngang ở 375/768/1024/1440px trên các trang public; mỗi trang đúng 1 `h1`, 1 `main`; không có nút thiếu tên hay ô nhập thiếu nhãn; chuyển sáng/tối giữ được khi đổi trang; menu mobile đóng bằng Esc và trả focus về nút
+- DB local không kết nối được, nên chỉ thấy trạng thái lỗi/rỗng; **dashboard chưa xem trên trình duyệt** (cần đăng nhập)
+
+Việc còn treo:
+
+- xem lại dashboard trên preview Vercel (cần đăng nhập); các trang public đã kiểm tra với dữ liệu thật, cả 2 theme, sau khi restore Supabase (project bị pause) và redeploy preview
+- đổi mật khẩu database (đã lộ trong phiên làm việc) rồi cập nhật `.env.local` và biến môi trường Vercel
+- `getPublicResourceFacets` và `getProjectBySlug` không báo lỗi: facets lỗi thì dropdown rỗng, chi tiết lỗi DB thì thành 404
+- trang tool lọc mic vẫn tự nạp font riêng (trùng với root layout), có thể bỏ
+
 ## 9. Sơ đồ hiểu nhanh dự án
 
 ### Lớp public

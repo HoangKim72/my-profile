@@ -46,9 +46,9 @@ Deploy: **Vercel**. Database và storage: **Supabase**.
 
 ```
 app/
-  layout.tsx, page.tsx          # Root layout + trang chủ (bảng công cụ)
-  (public)/                     # about, cv, skills, contact, projects, projects/[slug], tools/mic-filter
-  (auth)/                       # login, register, auth/callback, auth/auth-code-error
+  layout.tsx                    # Root layout: font, lang="vi", script theme chạy trước khi vẽ trang
+  (public)/                     # layout (Navbar + Footer), trang chủ, about, cv, skills, contact, projects, projects/[slug], tools/mic-filter
+  (auth)/                       # layout tối giản, login, register, auth/callback, auth/auth-code-error
   (dashboard)/dashboard/        # layout (requireAuth), page, projects, projects/new, projects/[id]/edit, settings
   api/
     auth/me/                    # GET  user hiện tại
@@ -59,11 +59,12 @@ src/
   middleware.ts                 # Rate limit toàn cục, chặn /dashboard, security headers
   actions/                      # Server Actions: auth, projects, profile, contact
   components/
-    features/                   # Hero, ProfileResume, ProfileSettingsForm, SkillsShowcase, ContactForm
-    layout/                     # Navbar, NavbarClient, Footer, Sidebar
+    features/                   # ProfileResume, ProfileSettingsForm, SkillsShowcase, ContactForm
+    home/                       # ToolsSection, ResourcesSection, Shortcuts (trang chủ)
+    layout/                     # Navbar, NavbarClient, AccountMenu, Footer, Sidebar (+ DashboardMobileNav), SiteLogo, LogoutButton
     projects/                   # ProjectCard, ProjectForm
     tools/                      # MicFilterWorkspace, MicFilterTool, ShiftSummaryPanel
-    ui/                         # FullscreenLoader
+    ui/                         # Button, Field/Input/Select/Textarea, Card, Badge, PageHeader, EmptyState, ErrorState, ThemeToggle, FullscreenLoader
   lib/
     auth/                       # check-auth, permissions, user-record
     db/prisma.ts                # Prisma singleton
@@ -341,7 +342,7 @@ Báo thức đã đặt **không** được khôi phục, nên sau khi reload c�
 - `getMicFilterConfig()` **không bao giờ throw**. Khi chưa có hàng nào, dữ liệu hỏng hoặc DB lỗi, hàm trả về `DEFAULT_MIC_FILTER_CONFIG` (lấy từ `constants.ts`), để tool vẫn dùng được mỗi ca.
 - Server action `saveMicFilterConfig` (upsert) và `resetMicFilterConfig` (xoá hàng để về mặc định) chỉ cho admin, và revalidate trang tool.
 - Form admin cho sửa danh sách phòng (mỗi dòng một phòng), giờ 3 ca và rule nhắc (thêm/xoá, xem trước câu gợi ý).
-- Sidebar dashboard chỉ hiện link "Tool lọc mic" và "Settings" với admin (`adminOnly` trong `ADMIN_NAV_LINKS`).
+- Sidebar dashboard chỉ hiện link "Tool lọc mic" và "Cài đặt" với admin (`adminOnly` trong `ADMIN_NAV_LINKS`).
 
 `constants.ts` giờ chỉ là **giá trị mặc định**. Khi đã lưu cấu hình trong dashboard, sửa `constants.ts` không còn tác dụng cho tới khi bấm "Về mặc định".
 
@@ -356,6 +357,16 @@ Báo thức đã đặt **không** được khôi phục, nên sau khi reload c�
 5. Ghi vào `contact_messages`, kèm `userId` nếu người gửi đã đăng nhập.
 
 Form hiển thị lỗi từ server và thông báo khi gửi thành công. Hiện vẫn **chưa có thông báo** cho admin và **chưa có UI đọc tin**.
+
+### 7.6. Hệ thống giao diện (từ `2026-10-14`)
+
+- **Token màu** trong `app/globals.css`, dùng qua class Tailwind: nền `canvas`/`surface`/`sunken`, chữ `ink`/`muted`, viền `line`/`line-strong`, màu nhấn `accent` (`#2457D6`, trùng `--mic-primary`), trạng thái `success`/`warn`/`danger` (+ `-soft`). Các biến `--mic-*` vẫn giữ cho tool lọc mic.
+- **Sáng/tối thủ công**: `dark:` theo thuộc tính `data-theme` trên `<html>` (`@custom-variant dark`), không theo media query. Script trong `<head>` của `app/layout.tsx` đọc `localStorage["theme"]` (`light`/`dark`/`system`) và gắn `data-theme` trước khi vẽ trang. Logic nằm ở `src/lib/theme/theme.ts`; nút chọn là `ThemeToggle` (navbar, menu mobile, sidebar, trang auth).
+- **Font**: Be Vietnam Pro + JetBrains Mono nạp bằng `next/font` ở root layout.
+- **A11y chung**: viền `:focus-visible` cho mọi phần tử tương tác, tắt hiệu ứng khi `prefers-reduced-motion`, link "Bỏ qua tới nội dung" ở layout public, mỗi trang một `h1` (qua `PageHeader`).
+- **Quy ước**: chỉ dùng `rounded-lg|xl|2xl|full`, `shadow-sm|md`; hover chỉ đổi màu, không dịch chuyển; toàn bộ chữ UI là tiếng Việt có dấu.
+- **Layout**: `Navbar`/`Footer` chỉ có ở `(public)`. Dashboard chỉ có `Sidebar` (desktop) và `DashboardMobileNav` (mobile). `Footer` đọc liên hệ thật từ `getSiteProfile()` và tự ẩn khi DB lỗi.
+- Trang Kỹ năng không in lỗi thô của nguồn dữ liệu ra trang; lỗi gốc ghi bằng `console.error` phía server.
 
 ---
 

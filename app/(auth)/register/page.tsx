@@ -2,9 +2,20 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { registerUser } from "@/actions/auth";
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  fieldDescribedBy,
+} from "@/components/ui";
 import { FullscreenLoader } from "@/components/ui/FullscreenLoader";
 import { initialAuthActionState } from "@/lib/validators/auth";
+
+const ERROR_ID = "register-error";
+const PASSWORD_HINT = "Tối thiểu 8 ký tự.";
 
 export default function RegisterPage() {
   const [state, formAction, isPending] = useActionState(
@@ -12,115 +23,114 @@ export default function RegisterPage() {
     initialAuthActionState,
   );
 
+  const hasError = Boolean(state.error);
+  const withError = (ids?: string) =>
+    [ids, hasError ? ERROR_ID : undefined].filter(Boolean).join(" ") ||
+    undefined;
+
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4">
+    <div className="mx-auto w-full max-w-md py-8">
       {isPending && (
         <FullscreenLoader
-          title="Dang tao tai khoan"
-          description="Vui long cho trong giay lat trong khi he thong tao tai khoan, dang nhap va chuyen ban vao dashboard."
+          title="Đang tạo tài khoản"
+          description="Vui lòng chờ trong giây lát trong khi hệ thống tạo tài khoản, đăng nhập và chuyển bạn vào bảng điều khiển."
         />
       )}
 
-      <div className="w-full max-w-md">
-        <div className="card p-8">
-          <h1 className="text-3xl font-bold mb-2 text-center">
-            Create Account
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-center mb-8">
-            Sign up to start building your portfolio
-          </p>
+      <Card padding="lg">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          Tạo tài khoản
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-muted">
+          Đăng ký để dùng các công cụ và kho tài liệu.
+        </p>
 
+        <form action={formAction} className="mt-6 space-y-5">
           {state.error && (
-            <div className="mb-6 p-4 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded-lg">
-              {state.error}
+            <div
+              id={ERROR_ID}
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"
+            >
+              <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span>{state.error}</span>
             </div>
           )}
 
-          <form action={formAction} className="space-y-6">
-            <div className="hidden" aria-hidden="true">
-              <label htmlFor="website">Website</label>
-              <input
-                id="website"
-                name="website"
-                type="text"
-                tabIndex={-1}
-                autoComplete="off"
-              />
-            </div>
+          <div className="hidden" aria-hidden="true">
+            <label htmlFor="website">Website</label>
+            <input
+              id="website"
+              name="website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                placeholder="you@example.com"
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoComplete="email"
-                required
-              />
-            </div>
+          <Field htmlFor="email" label="Email" required>
+            <Input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="ban@example.com"
+              autoComplete="email"
+              aria-describedby={withError()}
+              invalid={hasError}
+              required
+            />
+          </Field>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium mb-2"
-              >
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Minimum 8 characters"
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-            </div>
+          <Field
+            htmlFor="password"
+            label="Mật khẩu"
+            hint={PASSWORD_HINT}
+            required
+          >
+            <Input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Tối thiểu 8 ký tự"
+              autoComplete="new-password"
+              minLength={8}
+              aria-describedby={withError(
+                fieldDescribedBy("password", { hint: PASSWORD_HINT }),
+              )}
+              invalid={hasError}
+              required
+            />
+          </Field>
 
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium mb-2"
-              >
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                placeholder="Repeat your password"
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-            </div>
+          <Field htmlFor="confirmPassword" label="Nhập lại mật khẩu" required>
+            <Input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              placeholder="Nhập lại mật khẩu"
+              autoComplete="new-password"
+              minLength={8}
+              aria-describedby={withError()}
+              invalid={hasError}
+              required
+            />
+          </Field>
 
-            <button
-              type="submit"
-              disabled={isPending}
-              className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isPending ? "Creating account..." : "Sign Up"}
-            </button>
-          </form>
+          <Button type="submit" fullWidth loading={isPending}>
+            {isPending ? "Đang tạo tài khoản…" : "Tạo tài khoản"}
+          </Button>
+        </form>
 
-          <p className="text-center text-gray-600 dark:text-gray-400 mt-6">
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              className="text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </div>
+        <p className="mt-6 text-center text-sm text-muted">
+          Đã có tài khoản?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-accent underline-offset-4 transition-colors hover:text-accent-hover hover:underline"
+          >
+            Đăng nhập
+          </Link>
+        </p>
+      </Card>
     </div>
   );
 }

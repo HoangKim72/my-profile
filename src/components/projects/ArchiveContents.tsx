@@ -53,14 +53,14 @@ function buildTree(entries: ArchiveManifestEntry[]) {
 
 function FolderNode({ folder, depth }: { folder: TreeFolder; depth: number }) {
   return (
-    <ul className={depth > 0 ? "ml-4 border-l border-gray-200 pl-3 dark:border-gray-800" : ""}>
+    <ul className={depth > 0 ? "ml-4 border-l border-line pl-3" : ""}>
       {[...folder.folders.values()].map((child) => (
         <li key={child.name}>
           <details open={depth < 1}>
-            <summary className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800">
-              <Folder size={15} className="shrink-0 text-amber-500" />
+            <summary className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-ink transition-colors hover:bg-sunken">
+              <Folder size={16} className="shrink-0 text-warn" aria-hidden="true" />
               <span className="font-medium">{child.name}</span>
-              <span className="text-xs text-gray-500">{child.fileCount} file</span>
+              <span className="text-sm text-muted">{child.fileCount} file</span>
             </summary>
             <FolderNode folder={child} depth={depth + 1} />
           </details>
@@ -69,12 +69,14 @@ function FolderNode({ folder, depth }: { folder: TreeFolder; depth: number }) {
       {folder.files.map((file) => (
         <li
           key={file.name}
-          className="flex items-center gap-2 px-2 py-1 text-gray-700 dark:text-gray-300"
+          className="flex items-center gap-2 px-2 py-1.5 text-ink"
         >
-          <FileText size={15} className="shrink-0 text-gray-400" />
-          <span className="min-w-0 flex-1 truncate">{file.name}</span>
+          <FileText size={16} className="shrink-0 text-muted" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate" title={file.name}>
+            {file.name}
+          </span>
           {file.sizeBytes !== null && (
-            <span className="shrink-0 text-xs text-gray-500">
+            <span className="shrink-0 font-mono text-xs text-muted">
               {formatFileSize(file.sizeBytes)}
             </span>
           )}
@@ -89,19 +91,24 @@ export function ArchiveContents({ manifest }: { manifest: ArchiveManifest }) {
   const hiddenCount = manifest.totalFiles - manifest.entries.length;
 
   return (
-    <section className="mb-10">
+    <section aria-labelledby="ben-trong-zip">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-bold">Bên trong file ZIP</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <h2 id="ben-trong-zip" className="text-lg font-semibold text-ink">
+          Bên trong file ZIP
+        </h2>
+        <p className="text-sm text-muted">
           {manifest.totalFiles.toLocaleString("vi-VN")} file
           {manifest.totalUncompressedBytes !== null &&
             ` • ${formatFileSize(manifest.totalUncompressedBytes)} sau khi giải nén`}
         </p>
       </div>
-      <div className="max-h-[28rem] overflow-auto rounded-2xl border border-gray-200 p-3 text-sm dark:border-gray-800">
+      <div className="max-h-[28rem] overflow-auto rounded-xl border border-line bg-surface p-3 text-sm"
+        tabIndex={0}
+        role="region"
+        aria-label="Danh sách file trong ZIP">
         <FolderNode folder={tree} depth={0} />
         {manifest.truncated && hiddenCount > 0 && (
-          <p className="px-2 pt-2 text-xs text-gray-500">
+          <p className="px-2 pt-2 text-sm text-muted">
             … và {hiddenCount.toLocaleString("vi-VN")} file khác.
           </p>
         )}

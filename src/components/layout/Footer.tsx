@@ -1,129 +1,126 @@
 // src/components/layout/Footer.tsx
 
 import Link from "next/link";
-import { SITE_NAME } from "@/lib/utils/constants";
+import { ExternalLink, Mail, Phone } from "lucide-react";
+import { NAV_LINKS, SITE_NAME } from "@/lib/utils/constants";
+import { getSiteProfile } from "@/lib/profile/site-profile";
+import {
+  buildResumeViewModel,
+  type ResumeViewModel,
+} from "@/lib/profile/resume-view";
 
-export function Footer() {
+const linkClass =
+  "inline-flex cursor-pointer items-center gap-2 py-1 text-sm text-muted transition-colors hover:text-ink";
+
+async function loadContact(): Promise<ResumeViewModel | null> {
+  try {
+    const profile = await getSiteProfile();
+    return profile ? buildResumeViewModel(profile) : null;
+  } catch (error) {
+    console.error("Footer: unable to load site profile", error);
+    return null;
+  }
+}
+
+export async function Footer() {
   const currentYear = new Date().getFullYear();
+  const contact = await loadContact();
+
+  const externalLinks = [
+    { label: "GitHub", href: contact?.githubUrl },
+    { label: "LinkedIn", href: contact?.linkedinUrl },
+    { label: "Facebook", href: contact?.facebookUrl },
+    { label: "Website", href: contact?.websiteUrl },
+  ].filter((item): item is { label: string; href: string } =>
+    Boolean(item.href),
+  );
 
   return (
-    <footer className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
-      <div className="container-custom py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          {/* About */}
-          <div>
-            <h3 className="font-semibold mb-4">{SITE_NAME}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              A modern portfolio showcasing projects, skills, and experience.
+    <footer className="border-t border-line bg-surface">
+      <div className="container-custom py-10">
+        <div className="grid gap-8 md:grid-cols-[2fr_1fr_1fr]">
+          <div className="max-w-sm">
+            <p className="text-base font-semibold text-ink">{SITE_NAME}</p>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Bảng công cụ, kho tài liệu môn học và hồ sơ cá nhân của Anh
+              coder.
             </p>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h4 className="font-semibold mb-4">Navigation</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="/"
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/projects"
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  Projects
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  Contact
-                </Link>
-              </li>
+          <nav aria-labelledby="footer-nav-heading">
+            <h2
+              id="footer-nav-heading"
+              className="text-sm font-semibold text-ink"
+            >
+              Điều hướng
+            </h2>
+            <ul className="mt-3 grid grid-cols-2 gap-x-4 md:grid-cols-1">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className={linkClass}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
-          </div>
+          </nav>
 
-          {/* Social */}
           <div>
-            <h4 className="font-semibold mb-4">Social</h4>
-            <ul className="space-y-2 text-sm">
+            <h2 className="text-sm font-semibold text-ink">Liên hệ</h2>
+            <ul className="mt-3">
+              {contact?.publicEmail ? (
+                <li>
+                  <a
+                    href={`mailto:${contact.publicEmail}`}
+                    className={`${linkClass} break-all`}
+                  >
+                    <Mail size={16} aria-hidden="true" className="shrink-0" />
+                    {contact.publicEmail}
+                  </a>
+                </li>
+              ) : null}
+              {contact?.phone ? (
+                <li>
+                  <a
+                    href={`tel:${contact.phone.replace(/\s+/g, "")}`}
+                    className={linkClass}
+                  >
+                    <Phone size={16} aria-hidden="true" className="shrink-0" />
+                    {contact.phone}
+                  </a>
+                </li>
+              ) : null}
+              {externalLinks.map((item) => (
+                <li key={item.label}>
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={linkClass}
+                  >
+                    <ExternalLink
+                      size={16}
+                      aria-hidden="true"
+                      className="shrink-0"
+                    />
+                    {item.label}
+                    <span className="sr-only"> (mở tab mới)</span>
+                  </a>
+                </li>
+              ))}
               <li>
-                <a href="#" className="hover:text-blue-600 transition-colors">
-                  GitHub
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-600 transition-colors">
-                  LinkedIn
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-600 transition-colors">
-                  Twitter
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="font-semibold mb-4">Contact</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <a
-                  href="mailto:hello@example.com"
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  Email
-                </a>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  Contact Form
+                <Link href="/contact" className={linkClass}>
+                  Gửi lời nhắn
                 </Link>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom */}
-        <div className="border-t border-gray-200 dark:border-gray-800 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-            <p>
-              &copy; {currentYear} {SITE_NAME}. All rights reserved.
-            </p>
-            <div className="flex gap-6 mt-4 md:mt-0">
-              <Link
-                href="#"
-                className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
-                Privacy
-              </Link>
-              <Link
-                href="#"
-                className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
-                Terms
-              </Link>
-            </div>
-          </div>
+        <div className="mt-8 border-t border-line pt-6 text-sm text-muted">
+          <p>
+            &copy; {currentYear} {SITE_NAME}
+          </p>
         </div>
       </div>
     </footer>

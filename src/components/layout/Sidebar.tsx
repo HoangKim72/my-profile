@@ -4,192 +4,283 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AuthUser } from "@/types";
-import { ADMIN_NAV_LINKS } from "@/lib/utils/constants";
+import { useEffect, useRef, useState } from "react";
 import {
   ExternalLink,
   FolderKanban,
   LayoutDashboard,
-  LogOut,
+  Menu,
   Mic,
   Settings,
-  ShieldCheck,
-  UserCircle2,
+  X,
+  type LucideIcon,
 } from "lucide-react";
+import type { AuthUser, UserRole } from "@/types";
+import { ADMIN_NAV_LINKS } from "@/lib/utils/constants";
 import { createClient } from "@/lib/supabase/client";
+import { Badge, ThemeToggle, cn, type BadgeTone } from "@/components/ui";
+import { LogoutButton } from "@/components/layout/LogoutButton";
+import { LogoMark } from "@/components/layout/SiteLogo";
 
 interface SidebarProps {
   user: AuthUser;
 }
 
-const NAV_META: Record<
-  string,
-  {
-    description: string;
-    icon: typeof LayoutDashboard;
-  }
-> = {
-  "/dashboard": {
-    description: "Tong quan he thong va cac muc can xu ly.",
-    icon: LayoutDashboard,
-  },
-  "/dashboard/projects": {
-    description: "Danh sach folder, trang thai va file tai xuong.",
-    icon: FolderKanban,
-  },
-  "/dashboard/tools/mic-filter": {
-    description: "Phòng mic không dây, khung giờ ca và rule nhắc máy lạnh.",
-    icon: Mic,
-  },
-  "/dashboard/settings": {
-    description: "Cap nhat ho so cong khai va hinh anh dai dien.",
-    icon: Settings,
-  },
+const NAV_ICONS: Record<string, LucideIcon> = {
+  "/dashboard": LayoutDashboard,
+  "/dashboard/projects": FolderKanban,
+  "/dashboard/tools/mic-filter": Mic,
+  "/dashboard/settings": Settings,
 };
 
-export function Sidebar({ user }: SidebarProps) {
-  const pathname = usePathname();
-  const supabase = createClient();
+const ROLE_META: Record<UserRole, { label: string; tone: BadgeTone }> = {
+  admin: { label: "Quản trị viên", tone: "accent" },
+  viewer: { label: "Người xem", tone: "neutral" },
+  guest: { label: "Khách", tone: "neutral" },
+};
 
-  const isLinkActive = (href: string) => {
-    if (href === "/dashboard") {
-      return pathname === "/dashboard";
+const MOBILE_NAV_ID = "dashboard-mobile-nav";
+
+function isLinkActive(pathname: string, href: string) {
+  if (href === "/dashboard") {
+    return pathname === "/dashboard";
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function getVisibleLinks(user: AuthUser) {
+  return ADMIN_NAV_LINKS.filter(
+    (link) => !link.adminOnly || user.role === "admin",
+  );
+}
+
+function useLogout() {
+  const [supabase] = useState(() => createClient());
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const logout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Sign out failed:", error);
+      setIsLoggingOut(false);
     }
-
-    return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/";
-  };
+  return { logout, isLoggingOut };
+}
+
+function DashboardNavList({
+  user,
+  pathname,
+  onNavigate,
+}: {
+  user: AuthUser;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <ul className="space-y-1">
+      {getVisibleLinks(user).map((link) => {
+        const isActive = isLinkActive(pathname, link.href);
+        const Icon = NAV_ICONS[link.href] ?? LayoutDashboard;
+
+        return (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              aria-current={isActive ? "page" : undefined}
+              onClick={onNavigate}
+              className={cn(
+                "flex h-11 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-accent-soft text-accent"
+                  : "text-muted hover:bg-sunken hover:text-ink",
+              )}
+            >
+              <Icon size={18} aria-hidden="true" className="shrink-0" />
+              {link.label}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function UserRow({ user }: { user: AuthUser }) {
+  const name = user.profile?.fullName?.trim() || user.email;
+  const initial = (name.charAt(0) || "U").toUpperCase();
+  const role = ROLE_META[user.role] ?? ROLE_META.viewer;
 
   return (
-    <aside className="w-full shrink-0 border-b border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] lg:min-h-screen lg:w-80 lg:border-b-0 lg:border-r lg:border-slate-200 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)]">
-      <div className="flex h-full flex-col">
-        <div className="border-b border-slate-200 p-5 dark:border-slate-800">
-          <Link href="/dashboard" className="inline-flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_top,_#ffffff,_#bfdbfe_58%,_#93c5fd)] text-sm font-black tracking-[0.18em] text-slate-900 shadow-[0_18px_40px_-24px_rgba(59,130,246,0.8)] dark:bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.2),rgba(30,41,59,0.95)_62%,rgba(15,23,42,1))] dark:text-white">
-              AC
-            </span>
-            <span>
-              <span className="block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
-                Control Center
-              </span>
-              <span className="block text-xl font-bold text-slate-950 dark:text-white">
-                Admin Workspace
-              </span>
-            </span>
-          </Link>
+    <div className="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent"
+      >
+        {initial}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-ink">{name}</p>
+        {name !== user.email ? (
+          <p className="truncate text-xs text-muted">{user.email}</p>
+        ) : null}
+      </div>
+      <Badge tone={role.tone} className="shrink-0">
+        {role.label}
+      </Badge>
+    </div>
+  );
+}
 
-          <div className="mt-5 rounded-[28px] border border-white/80 bg-white/90 p-4 shadow-[0_26px_70px_-34px_rgba(15,23,42,0.42)] dark:border-white/10 dark:bg-slate-950/70">
-            <div className="flex items-start gap-3">
-              <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-lg shadow-blue-500/25">
-                <UserCircle2 size={22} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-slate-950 dark:text-white">
-                  {user.profile?.fullName || "Admin user"}
-                </p>
-                <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-                  {user.email}
-                </p>
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-200">
-                  <ShieldCheck size={14} />
-                  {user.role}
-                </div>
-              </div>
-            </div>
+function SidebarFooter({
+  user,
+  isLoggingOut,
+  onLogout,
+}: {
+  user: AuthUser;
+  isLoggingOut: boolean;
+  onLogout: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <UserRow user={user} />
+      <Link
+        href="/"
+        className="flex h-10 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-sunken hover:text-ink"
+      >
+        <ExternalLink size={16} aria-hidden="true" />
+        Xem trang công khai
+      </Link>
+      <ThemeToggle showLabels />
+      <LogoutButton isLoggingOut={isLoggingOut} onLogout={onLogout} />
+    </div>
+  );
+}
 
-            <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Khu quan tri de theo doi project, cap nhat profile cong khai va
-              xu ly cac tai nguyen hien thi tren website.
-            </p>
-          </div>
-        </div>
+/** Desktop (lg+) sidebar for the dashboard. */
+export function Sidebar({ user }: SidebarProps) {
+  const pathname = usePathname();
+  const { logout, isLoggingOut } = useLogout();
 
-        <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-800 dark:hover:text-blue-200"
-            >
-              <ExternalLink size={15} />
-              Xem trang cong khai
-            </Link>
-            <Link
-              href="/about"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-800 dark:hover:text-blue-200"
-            >
-              <ExternalLink size={15} />
-              Preview ho so
-            </Link>
-          </div>
-        </div>
+  return (
+    <aside className="hidden w-64 shrink-0 border-r border-line bg-surface lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+      <div className="flex h-16 items-center border-b border-line px-4">
+        <Link
+          href="/dashboard"
+          className="flex cursor-pointer items-center gap-2.5 rounded-lg text-ink transition-colors hover:text-accent"
+        >
+          <LogoMark />
+          <span className="text-base font-semibold">Bảng điều khiển</span>
+        </Link>
+      </div>
 
-        <div className="flex-1 px-5 py-5">
-          <div className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
-            Dieu huong chinh
-          </div>
-          <nav className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-1">
-            {ADMIN_NAV_LINKS.filter(
-              (link) => !link.adminOnly || user.role === "admin",
-            ).map((link) => {
-              const isActive = isLinkActive(link.href);
-              const navMeta = NAV_META[link.href];
-              const Icon = navMeta?.icon ?? LayoutDashboard;
+      <nav
+        aria-label="Điều hướng bảng điều khiển"
+        className="flex-1 overflow-y-auto px-3 py-4"
+      >
+        <DashboardNavList user={user} pathname={pathname} />
+      </nav>
 
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`group rounded-[24px] border px-4 py-4 transition-all duration-200 ${
-                    isActive
-                      ? "border-blue-600 bg-blue-600 text-white shadow-[0_22px_50px_-30px_rgba(37,99,235,0.85)]"
-                      : "border-slate-200 bg-white/90 text-slate-700 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:bg-slate-950"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl ${
-                        isActive
-                          ? "bg-white/15 text-white"
-                          : "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-200"
-                      }`}
-                    >
-                      <Icon size={18} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">
-                        {link.label}
-                      </span>
-                      <span
-                        className={`mt-1 block text-xs leading-5 ${
-                          isActive
-                            ? "text-blue-100"
-                            : "text-slate-500 dark:text-slate-400"
-                        }`}
-                      >
-                        {navMeta?.description}
-                      </span>
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="border-t border-slate-200 p-5 dark:border-slate-800">
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-950/70"
-          >
-            <LogOut size={18} />
-            Dang xuat
-          </button>
-        </div>
+      <div className="border-t border-line p-3">
+        <SidebarFooter
+          user={user}
+          isLoggingOut={isLoggingOut}
+          onLogout={logout}
+        />
       </div>
     </aside>
+  );
+}
+
+/** Mobile/tablet (<lg) top bar with a disclosure menu for the dashboard. */
+export function DashboardMobileNav({ user }: SidebarProps) {
+  const pathname = usePathname();
+  const { logout, isLoggingOut } = useLogout();
+  const [isOpen, setIsOpen] = useState(false);
+  const [lastPathname, setLastPathname] = useState(pathname);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Close the menu on route change.
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname);
+    setIsOpen(false);
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
+  const currentLink = getVisibleLinks(user).find((link) =>
+    isLinkActive(pathname, link.href),
+  );
+
+  return (
+    <div className="sticky top-0 z-40 border-b border-line bg-surface lg:hidden">
+      <div className="flex h-14 items-center gap-3 px-4">
+        <Link
+          href="/dashboard"
+          aria-label="Bảng điều khiển"
+          className="cursor-pointer rounded-lg"
+        >
+          <LogoMark />
+        </Link>
+        <p className="min-w-0 flex-1 truncate text-base font-semibold text-ink">
+          {currentLink?.label ?? "Bảng điều khiển"}
+        </p>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-label={isOpen ? "Đóng menu" : "Mở menu"}
+          aria-expanded={isOpen}
+          aria-controls={MOBILE_NAV_ID}
+          onClick={() => setIsOpen((value) => !value)}
+          className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-line text-ink transition-colors hover:bg-sunken"
+        >
+          {isOpen ? (
+            <X size={20} aria-hidden="true" />
+          ) : (
+            <Menu size={20} aria-hidden="true" />
+          )}
+        </button>
+      </div>
+
+      <div
+        id={MOBILE_NAV_ID}
+        hidden={!isOpen}
+        className="max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t border-line px-4 py-4"
+      >
+        <nav aria-label="Điều hướng bảng điều khiển">
+          <DashboardNavList
+            user={user}
+            pathname={pathname}
+            onNavigate={() => setIsOpen(false)}
+          />
+        </nav>
+        <div className="mt-4 border-t border-line pt-4">
+          <SidebarFooter
+            user={user}
+            isLoggingOut={isLoggingOut}
+            onLogout={logout}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

@@ -4,9 +4,9 @@ import { getSiteProfile } from "@/lib/profile/site-profile";
 import { getSkillsPageData } from "@/lib/skills/data";
 
 export const metadata: Metadata = {
-  title: "Skills",
+  title: "Kỹ năng",
   description:
-    "Skills duoc tong hop tu GitHub, project evidence, WakaTime va lop manual",
+    "Kỹ năng được tổng hợp từ GitHub, minh chứng dự án, WakaTime và phần khai báo thủ công.",
 };
 
 export const dynamic = "force-dynamic";

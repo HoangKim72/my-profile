@@ -2,23 +2,23 @@ import { SITE_NAME } from "@/lib/utils/constants";
 import { parseResumeContent, splitParagraphs } from "@/lib/profile/resume-content";
 
 const DEFAULT_SUMMARY = [
-  "Toi xay dung cac ung dung web va cong cu thuc dung, uu tien trai nghiem ro rang, de van hanh va de mo rong.",
-  "Website nay dong vai tro portfolio ca nhan, dashboard quan tri va noi tong hop cac cong cu co the su dung truc tiep tren web.",
+  "Tôi xây dựng các ứng dụng web và công cụ thực dụng, ưu tiên trải nghiệm rõ ràng, dễ vận hành và dễ mở rộng.",
+  "Website này đóng vai trò hồ sơ cá nhân, bảng điều khiển quản trị và nơi tổng hợp các công cụ có thể sử dụng trực tiếp trên web.",
 ];
 
 const DEFAULT_CURRENT_FOCUS =
-  "Hien tai toi dang tap trung vao viec hoan thien portfolio, mo rong dashboard quan tri, va bien website thanh bo cong cu huu ich cho cong viec thuc te.";
+  "Hiện tại tôi đang tập trung hoàn thiện hồ sơ cá nhân, mở rộng bảng điều khiển quản trị và biến website thành bộ công cụ hữu ích cho công việc thực tế.";
 
 const DEFAULT_STRENGTHS = [
-  "Phat trien giao dien responsive bang Next.js, React va Tailwind CSS.",
-  "Xay dung dashboard va luong quan tri don gian, de duy tri trong thuc te.",
-  "Ket noi auth, database va server actions cho cac tinh nang can du lieu dong.",
+  "Phát triển giao diện responsive bằng Next.js, React và Tailwind CSS.",
+  "Xây dựng bảng điều khiển và luồng quản trị đơn giản, dễ duy trì trong thực tế.",
+  "Kết nối xác thực, cơ sở dữ liệu và server actions cho các tính năng cần dữ liệu động.",
 ];
 
 const DEFAULT_HIGHLIGHTS = [
-  "Portfolio da co auth, role co ban va dashboard quan tri duoc.",
-  "Website da duoc deploy len Vercel va tiep tuc hoan thien cho production.",
-  "Dang phat trien them cac cong cu nghiep vu nhu Tool loc mic ngay tren web.",
+  "Website đã có đăng nhập, phân quyền cơ bản và bảng điều khiển quản trị.",
+  "Website đã được triển khai lên Vercel và tiếp tục hoàn thiện cho môi trường production.",
+  "Đang phát triển thêm các công cụ nghiệp vụ như công cụ lọc mic ngay trên web.",
 ];
 
 export interface ResumeProfileSource {
@@ -63,7 +63,7 @@ export function buildResumeViewModel(
     fullName: profile?.fullName?.trim() || SITE_NAME,
     headline:
       profile?.headline?.trim() ||
-      "Developer xay dung portfolio, dashboard va cong cu web thuc dung.",
+      "Lập trình viên xây dựng hồ sơ cá nhân, bảng điều khiển và công cụ web thực dụng.",
     avatarUrl: profile?.avatarUrl?.trim() || null,
     summaryParagraphs:
       summaryParagraphs.length > 0 ? summaryParagraphs : DEFAULT_SUMMARY,

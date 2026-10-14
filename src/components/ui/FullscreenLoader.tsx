@@ -1,4 +1,4 @@
-import { Loader, ShieldCheck } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface FullscreenLoaderProps {
   title: string;
@@ -10,23 +10,23 @@ export function FullscreenLoader({
   description,
 }: FullscreenLoaderProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/85 backdrop-blur-md dark:bg-black/80">
-      <div className="mx-4 w-full max-w-sm rounded-3xl border border-blue-100 bg-white p-8 text-center shadow-[0_30px_90px_-35px_rgba(37,99,235,0.45)] dark:border-blue-950 dark:bg-gray-950">
-        <div className="mx-auto mb-5 inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200">
-          <Loader size={30} className="animate-spin" />
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/90"
+    >
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-line bg-surface p-8 text-center shadow-md">
+        <div className="mx-auto mb-5 inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent">
+          <Loader2 size={28} className="animate-spin" aria-hidden="true" />
         </div>
 
-        <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
-          <ShieldCheck size={14} />
-          Admin Access
+        <div className="inline-flex items-center rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
+          Đang xử lý
         </div>
 
-        <h2 className="mt-5 text-2xl font-bold text-gray-950 dark:text-white">
-          {title}
-        </h2>
-        <p className="mt-3 text-sm leading-7 text-gray-600 dark:text-gray-300">
-          {description}
-        </p>
+        <h2 className="mt-5 text-xl font-semibold text-ink">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-muted">{description}</p>
       </div>
     </div>
   );
