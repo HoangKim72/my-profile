@@ -11,18 +11,20 @@ interface SiteLogoProps {
   className?: string;
 }
 
-/** Simple token-coloured mark + name. Server-safe. */
+/** Brand mark (same shape as public/logo-mark.svg). Server-safe. */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <span
+    <svg
       aria-hidden="true"
-      className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-on-accent",
-        className,
-      )}
+      viewBox="0 0 100 100"
+      className={cn("h-9 w-9 shrink-0", className)}
     >
-      AC
-    </span>
+      <path
+        fill="#FF7B3D"
+        fillRule="evenodd"
+        d="M39.6 1.06A50 50 0 0 0 39.6 98.9V63.2a2.4 2.4 0 0 1 2.4-2.4h16a2.4 2.4 0 0 1 2.4 2.4v35.7A50 50 0 0 0 60.4 1.1v35.7a2.4 2.4 0 0 1-2.4 2.4H42a2.4 2.4 0 0 1-2.4-2.4Z"
+      />
+    </svg>
   );
 }
 
