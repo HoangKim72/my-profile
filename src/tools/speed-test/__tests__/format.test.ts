@@ -15,7 +15,8 @@ describe("speed test formatting", () => {
   });
 
   it("shows a dash when missing", () => {
-    for (const value of [undefined, NaN, -1]) {
+    // The engine reports 0 for a category that started but has no samples yet
+    for (const value of [undefined, NaN, -1, 0]) {
       assert.equal(formatMbps(value), "—");
       assert.equal(formatMs(value), "—");
     }
@@ -23,7 +24,7 @@ describe("speed test formatting", () => {
 
   it("formats ms as integers", () => {
     assert.equal(formatMs(17.6), "18");
-    assert.equal(formatMs(0), "0");
+    assert.equal(formatMs(0.4), "0");
   });
 
   it("formats megabytes", () => {

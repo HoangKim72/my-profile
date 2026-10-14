@@ -40,15 +40,20 @@ import {
   formatMs,
 } from "@/tools/speed-test/format";
 import {
+  buildFinalAnnouncement,
+  isCategoryDone,
+  type Phase,
+} from "@/tools/speed-test/phases";
+import {
   QUALITY_LABEL,
   buildResultText,
   getExperienceQualities,
+  getQualityNote,
   rescoreAssumingNoPacketLoss,
   type QualityLevel,
 } from "@/tools/speed-test/quality";
 
 type Status = "idle" | "loading" | "running" | "paused" | "done" | "error";
-type Phase = "latency" | "download" | "upload";
 type ErrorKind = "load" | "run" | "offline";
 
 const ERROR_MESSAGE: Record<ErrorKind, { title: string; description: string }> = {
@@ -104,7 +109,8 @@ function describePhaseResult(phase: Phase, summary: MeasurementSummary) {
 export function SpeedTestTool() {
   const engineRef = useRef<SpeedTestEngine | null>(null);
   const mountedRef = useRef(true);
-  const phaseRef = useRef<Phase | null>(null);
+  const measurementIdRef = useRef(0);
+  const announcedRef = useRef(new Set<Phase>());
 
   const [status, setStatus] = useState<Status>("idle");
   const [summary, setSummary] = useState<MeasurementSummary>({});
@@ -128,7 +134,8 @@ export function SpeedTestTool() {
   }, []);
 
   const resetResults = () => {
-    phaseRef.current = null;
+    measurementIdRef.current = 0;
+    announcedRef.current = new Set();
     setSummary({});
     setScores(undefined);
     setPhase(null);
@@ -138,6 +145,14 @@ export function SpeedTestTool() {
   };
 
   const wireEngine = (engine: SpeedTestEngine) => {
+    engine.onPhaseChange = ({ measurementId, measurement }) => {
+      measurementIdRef.current = measurementId;
+
+      if (mountedRef.current) {
+        setPhase(toPhase(measurement.type));
+      }
+    };
+
     engine.onResultsChange = ({ type }) => {
       if (!mountedRef.current) {
         return;
@@ -146,15 +161,19 @@ export function SpeedTestTool() {
       const current = engine.results.getSummary();
       setSummary(current);
 
-      const next = toPhase(type);
-      const previous = phaseRef.current;
+      // Measurements interleave, so announce a category once, when its value is final
+      const category = toPhase(type);
+      const raw = category ? engine.results.raw[category] : undefined;
+      const finished =
+        typeof raw === "object" && raw !== null && raw.finished === true;
 
-      if (next && next !== previous) {
-        if (previous) {
-          setAnnouncement(describePhaseResult(previous, current));
-        }
-        phaseRef.current = next;
-        setPhase(next);
+      if (
+        category &&
+        !announcedRef.current.has(category) &&
+        isCategoryDone(category, finished, measurementIdRef.current, MEASUREMENTS)
+      ) {
+        announcedRef.current.add(category);
+        setAnnouncement(describePhaseResult(category, current));
       }
     };
 
@@ -163,13 +182,13 @@ export function SpeedTestTool() {
         return;
       }
 
-      setSummary(results.getSummary());
+      const finalSummary = results.getSummary();
+      setSummary(finalSummary);
       setScores(rescoreAssumingNoPacketLoss(results.getScores()));
       setPhase(null);
-      phaseRef.current = null;
       setMeasuredAt(new Date());
       setStatus("done");
-      setAnnouncement("Đã đo xong.");
+      setAnnouncement(buildFinalAnnouncement(finalSummary));
     };
 
     engine.onError = () => {
@@ -257,6 +276,8 @@ export function SpeedTestTool() {
   };
 
   const isBusy = status === "loading" || status === "running";
+  const qualityRows = getExperienceQualities(scores);
+  const qualityNote = getQualityNote(qualityRows);
   const hasAnyResult = Object.values(summary).some(
     (value) => typeof value === "number",
   );
@@ -461,8 +482,11 @@ export function SpeedTestTool() {
             Theo thang AIM của Cloudflare, giả định mạng không mất gói vì công
             cụ chưa đo chỉ số này.
           </p>
+          {qualityNote && (
+            <p className="mt-2 text-sm leading-6 text-ink">{qualityNote}</p>
+          )}
           <ul className="mt-3 divide-y divide-line">
-            {getExperienceQualities(scores).map(({ key, label, level }) => {
+            {qualityRows.map(({ key, label, level }) => {
               const { tone, icon: Icon } = QUALITY_STYLE[level];
 
               return (

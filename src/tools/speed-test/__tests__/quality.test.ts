@@ -4,6 +4,7 @@ import type { ClassificationName, Scores } from "@cloudflare/speedtest";
 import {
   buildResultText,
   getExperienceQualities,
+  getQualityNote,
   rescoreAssumingNoPacketLoss,
   toQualityLevel,
 } from "@/tools/speed-test/quality";
@@ -54,6 +55,17 @@ describe("speed test quality", () => {
     assert.equal(rescored?.streaming.classificationName, "great");
     assert.equal(rescored?.rtc.classificationName, "poor");
     assert.equal(rescoreAssumingNoPacketLoss(undefined), undefined);
+  });
+
+  it("explains when no experience could be rated", () => {
+    assert.match(
+      getQualityNote(getExperienceQualities({})) ?? "",
+      /Chưa đủ dữ liệu để đánh giá/,
+    );
+    assert.equal(
+      getQualityNote(getExperienceQualities({ gaming: score("good") })),
+      null,
+    );
   });
 
   it("builds copy text", () => {

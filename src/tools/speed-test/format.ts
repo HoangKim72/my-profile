@@ -1,7 +1,9 @@
 const EMPTY = "—";
 
+// The engine returns 0 for a category that has started but has no usable
+// samples yet, so 0 means "not measured" rather than a real reading.
 function isMeasured(value: number | undefined): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
 function withDecimalComma(value: string) {

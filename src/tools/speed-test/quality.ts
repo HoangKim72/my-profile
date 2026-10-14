@@ -83,6 +83,14 @@ export function getExperienceQualities(scores: Scores | undefined) {
   }));
 }
 
+// On very fast links the capped rounds finish too quickly to measure latency
+// under load, and every AIM experience needs it, so no rating is possible.
+export function getQualityNote(rows: ReadonlyArray<{ level: QualityLevel }>) {
+  return rows.every((row) => row.level === "unknown")
+    ? "Chưa đủ dữ liệu để đánh giá. Mạng của bạn có thể quá nhanh để đo độ trễ khi đang tải với giới hạn dữ liệu của công cụ."
+    : null;
+}
+
 function pad(value: number) {
   return String(value).padStart(2, "0");
 }
