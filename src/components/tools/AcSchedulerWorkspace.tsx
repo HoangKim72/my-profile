@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { XOctagon, Play, Radio, Snowflake, X } from "lucide-react";
 import { Badge, Button, Card, type BadgeTone } from "@/components/ui";
@@ -20,6 +21,8 @@ import {
 } from "@/tools/ac-scheduler/view";
 
 const AGENT_ONLINE_MS = 90_000;
+// Guests cannot use Realtime (RLS allows signed-in users only), so they poll
+const GUEST_REFRESH_MS = 15_000;
 const MAX_EVENTS = 200;
 
 const STATUS_TONES: Record<AcViewJobStatus, BadgeTone> = {
@@ -42,6 +45,7 @@ interface AcSchedulerWorkspaceProps {
   config: AcSchedulerConfig;
   canOperate: boolean;
   isAdmin: boolean;
+  isSignedIn: boolean;
   schedules: AcViewSchedule[];
   jobs: AcViewJob[];
   events: AcViewEvent[];
@@ -50,7 +54,7 @@ interface AcSchedulerWorkspaceProps {
 }
 
 export function AcSchedulerWorkspace(props: AcSchedulerWorkspaceProps) {
-  const { todayKey, config, canOperate, isAdmin, schedules, jobs, agents } = props;
+  const { todayKey, config, canOperate, isAdmin, isSignedIn, schedules, jobs, agents } = props;
   const router = useRouter();
   // Realtime rows received since the last server render, merged below
   const [liveEvents, setLiveEvents] = useState<AcViewEvent[]>([]);
@@ -64,6 +68,7 @@ export function AcSchedulerWorkspace(props: AcSchedulerWorkspaceProps) {
   // Realtime: new log lines and unit states are applied in place; job
   // changes need the unit name, so they trigger a (debounced) refresh.
   useEffect(() => {
+    if (!isSignedIn) return;
     const supabase = createClient();
     const scheduleRefresh = () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
@@ -92,17 +97,18 @@ export function AcSchedulerWorkspace(props: AcSchedulerWorkspaceProps) {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       void supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [router, isSignedIn]);
 
-  // Agent heartbeat is not pushed; re-read the page once a minute
+  // Agent heartbeat is not pushed; re-read the page once a minute (guests
+  // have no Realtime, so more often)
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), 15_000);
-    const refresh = setInterval(() => router.refresh(), 60_000);
+    const refresh = setInterval(() => router.refresh(), isSignedIn ? 60_000 : GUEST_REFRESH_MS);
     return () => {
       clearInterval(tick);
       clearInterval(refresh);
     };
-  }, [router]);
+  }, [router, isSignedIn]);
 
   const onlineAgent = agents.find(
     (agent) => agent.lastSeenAt && now - new Date(agent.lastSeenAt).getTime() < AGENT_ONLINE_MS,
@@ -155,7 +161,7 @@ export function AcSchedulerWorkspace(props: AcSchedulerWorkspaceProps) {
         </span>
         <span className="inline-flex items-center gap-1 text-sm text-muted">
           <Radio size={14} aria-hidden="true" className={live ? "text-success" : "text-muted"} />
-          {live ? "Log trực tiếp" : "Đang nối log trực tiếp…"}
+          {!isSignedIn ? "Tự cập nhật mỗi 15 giây" : live ? "Log trực tiếp" : "Đang nối log trực tiếp…"}
         </span>
         <span className="inline-flex items-center gap-1 text-sm text-muted">
           <Snowflake size={14} aria-hidden="true" />
@@ -195,7 +201,17 @@ export function AcSchedulerWorkspace(props: AcSchedulerWorkspaceProps) {
         <AcImportPanel todayKey={todayKey} config={config} units={planUnits} hasActiveSchedule={Boolean(activeSchedule)} />
       ) : (
         <p className="rounded-lg border border-line bg-sunken p-3 text-sm text-muted">
-          Bạn đang ở chế độ chỉ xem. Nhờ admin cấp quyền điều khiển máy lạnh để nhập lịch.
+          Bạn đang ở chế độ chỉ xem.{" "}
+          {isSignedIn ? (
+            "Nhờ admin cấp quyền điều khiển máy lạnh để nhập lịch."
+          ) : (
+            <>
+              <Link href="/login" className="font-medium text-accent underline-offset-2 hover:underline">
+                Đăng nhập
+              </Link>{" "}
+              bằng tài khoản được cấp quyền để nhập lịch và điều khiển.
+            </>
+          )}
         </p>
       )}
 
@@ -208,7 +224,9 @@ export function AcSchedulerWorkspace(props: AcSchedulerWorkspaceProps) {
             {activeSchedule && (
               <div className="flex items-center gap-2 text-sm text-muted">
                 <span>
-                  {activeSchedule.fileName} · {activeSchedule.createdByEmail} · {formatAcClock(activeSchedule.createdAt)}
+                  {[activeSchedule.fileName, activeSchedule.createdByEmail, formatAcClock(activeSchedule.createdAt)]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
                 {canOperate && (
                   <Button

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AcSchedulerWorkspace } from "@/components/tools/AcSchedulerWorkspace";
 import { PageHeader } from "@/components/ui";
-import { requireAuth } from "@/lib/auth/check-auth";
+import { getCurrentUser } from "@/lib/auth/check-auth";
 import { canOperateAc, getAcOverview } from "@/lib/tools/ac-scheduler";
 
 export const metadata: Metadata = {
@@ -11,9 +11,12 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+// Open to everyone for viewing; switching units needs a signed-in operator.
+// Guests never receive email addresses (who imported, who acted).
 export default async function AcSchedulerPage() {
-  const user = await requireAuth();
+  const user = await getCurrentUser();
   const [overview, canOperate] = await Promise.all([getAcOverview(), canOperateAc(user)]);
+  const showPeople = Boolean(user);
 
   return (
     <div className="container-custom max-w-6xl py-10 md:py-14">
@@ -23,12 +26,13 @@ export default async function AcSchedulerPage() {
           todayKey={overview.todayKey}
           config={overview.config}
           canOperate={canOperate}
-          isAdmin={user.role === "admin"}
+          isAdmin={user?.role === "admin"}
+          isSignedIn={Boolean(user)}
           schedules={overview.schedules.map((schedule) => ({
             id: schedule.id,
             status: schedule.status,
             fileName: schedule.fileName,
-            createdByEmail: schedule.createdByEmail,
+            createdByEmail: showPeople ? schedule.createdByEmail : "",
             createdAt: schedule.createdAt.toISOString(),
           }))}
           jobs={overview.jobs.map((job) => ({
@@ -48,7 +52,7 @@ export default async function AcSchedulerPage() {
             level: event.level,
             message: event.message,
             unitName: event.unitName,
-            actor: event.actor,
+            actor: showPeople ? event.actor : null,
             createdAt: event.createdAt.toISOString(),
           }))}
           units={overview.units.map((unit) => ({

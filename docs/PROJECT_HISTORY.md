@@ -640,6 +640,7 @@ Chủ dự án chốt:
 - dùng tool trễ: **bật ngay nếu còn ≥ 30 phút** trước giờ kết thúc, ít hơn thì bỏ qua
 - agent chạy trên **PC luôn bật trong LAN trường**
 - **mọi user đăng nhập** được xem log; nhập/kích hoạt cần quyền `ac_operator` do admin cấp (vì `/register` đang mở)
+- (sửa cùng ngày) **không cần đăng nhập vẫn vào được tool** ở chế độ chỉ xem: khách thấy trạng thái, lệnh, nhật ký nhưng không thấy email, trang tự tải lại mỗi 15 giây; điều khiển vẫn cần tài khoản có quyền
 
 Kiến trúc: Vercel không gọi được IP nội bộ, nên **agent Python trong LAN** (`agent/ac-agent/`) tự hỏi web mỗi 30s (`/api/ac-agent/plan`, token riêng, chỉ lưu hash), điều khiển iTM, báo kết quả. Log và trạng thái máy đẩy lên trang bằng **Supabase Realtime** (không đổi stack, không cần Vercel Cron).
 

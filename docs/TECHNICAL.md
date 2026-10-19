@@ -404,7 +404,7 @@ Bật máy lạnh **toà E1** theo file lịch học hằng ngày: bật trướ
 
 **Cấu hình** (`tool_settings` key `ac-scheduler`, `acSchedulerConfigSchema`): `leadMinutes`, `minRemainingMinutes`, `maxConcurrentUnits`, `paused` (dừng khẩn cấp), `dryRun` (**mặc định bật**: agent chỉ ghi log). Đọc lỗi → trả về cấu hình mặc định với `paused: true`.
 
-**Quyền:** mọi user đăng nhập xem trang/log (RLS `SELECT` cho `authenticated`). Nhập, kích hoạt, huỷ, dừng khẩn cấp cần admin hoặc role `ac_operator` (`canOperateAc`). Bật lại sau dừng khẩn cấp, cấu hình, danh sách máy, cấp quyền, token agent: chỉ admin (`/dashboard/tools/ac`).
+**Quyền:** **ai cũng mở được trang** ở chế độ chỉ xem, không cần đăng nhập (trạng thái agent, lệnh hôm nay, nhật ký). Khách không thấy email (người nhập lịch, người thao tác) và không dùng Realtime (RLS chỉ cho `authenticated`), nên trang tự tải lại mỗi 15 giây. User đã đăng nhập nhận log qua Realtime. Nhập, kích hoạt, huỷ, dừng khẩn cấp cần admin hoặc role `ac_operator` (`canOperateAc`). Bật lại sau dừng khẩn cấp, cấu hình, danh sách máy, cấp quyền, token agent: chỉ admin (`/dashboard/tools/ac`).
 
 **API cho agent** (`Authorization: Bearer <token>`, `ac_agents.tokenHash` = SHA-256):
 
