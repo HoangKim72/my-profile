@@ -199,3 +199,129 @@ model ToolSetting {
 
   @@map("tool_settings")
 }
+
+// ============= AIR-CONDITIONER SCHEDULER =============
+// The web app only plans; a LAN agent (agent/ac-agent) polls
+// /api/ac-agent/plan, drives the Daikin iTM controllers and reports back.
+// ac_events, ac_jobs and ac_units are published to Supabase Realtime.
+
+// One indoor unit on an iTM controller. ip + floorName + unitIndex locate it
+// on the iTM layout screen; name is what iTM shows and is re-checked before
+// every command.
+model AcUnit {
+  id        String    @id @default(cuid())
+  name      String
+  itmIp     String
+  floorName String
+  unitIndex Int
+  // Schedule room codes this unit cools, e.g. ["E1-12.02"]
+  roomCodes String[]
+  enabled   Boolean   @default(true)
+  // Last state reported by the agent (null = unknown)
+  isRunning Boolean?
+  stateAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  jobs AcJob[]
+
+  @@unique([itmIp, floorName, unitIndex])
+  @@map("ac_units")
+}
+
+// An activated schedule for one day. Re-importing the same day supersedes
+// the previous one and cancels its pending jobs.
+model AcSchedule {
+  id             String           @id @default(cuid())
+  dateKey        String
+  status         AcScheduleStatus @default(ACTIVE)
+  fileName       String
+  // AcPlan counters shown in the history (rows, skipped, units...)
+  summary        Json
+  createdById    String
+  createdByEmail String
+  createdAt      DateTime         @default(now())
+  endedAt        DateTime?
+
+  jobs AcJob[]
+
+  @@index([dateKey, status])
+  @@map("ac_schedules")
+}
+
+enum AcScheduleStatus {
+  ACTIVE
+  SUPERSEDED
+  CANCELLED
+}
+
+model AcJob {
+  id          String      @id @default(cuid())
+  scheduleId  String
+  unitId      String
+  action      AcAction
+  runAt       DateTime
+  // Class period this job belongs to (before the lead time is applied)
+  windowStart DateTime
+  windowEnd   DateTime
+  roomCodes   String[]
+  status      AcJobStatus @default(PENDING)
+  attempts    Int         @default(0)
+  result      String?
+  updatedAt   DateTime    @updatedAt
+
+  schedule AcSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  unit     AcUnit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@index([status, runAt])
+  @@map("ac_jobs")
+}
+
+enum AcAction {
+  ON
+  OFF
+}
+
+enum AcJobStatus {
+  PENDING
+  RUNNING
+  DONE
+  SKIPPED
+  FAILED
+  CANCELLED
+}
+
+// Append-only log shown live on /tools/ac
+model AcEvent {
+  id        String       @id @default(cuid())
+  level     AcEventLevel @default(INFO)
+  message   String
+  unitName  String?
+  jobId     String?
+  actor     String?
+  createdAt DateTime     @default(now())
+
+  @@index([createdAt])
+  @@map("ac_events")
+}
+
+enum AcEventLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+// A machine allowed to call /api/ac-agent/*. Only the SHA-256 of its token
+// is stored.
+model AcAgent {
+  id         String    @id @default(cuid())
+  name       String
+  tokenHash  String    @unique
+  lastSeenAt DateTime?
+  lastIp     String?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("ac_agents")
+}

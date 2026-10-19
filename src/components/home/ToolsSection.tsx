@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Gauge, Mic, type LucideIcon } from "lucide-react";
+import { ArrowRight, Gauge, Mic, Snowflake, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui";
 
 const TOOLS: ReadonlyArray<{
@@ -21,6 +21,13 @@ const TOOLS: ReadonlyArray<{
     description:
       "Đo tải xuống, tải lên, ping và độ dao động.",
     icon: Gauge,
+  },
+  {
+    href: "/tools/ac",
+    title: "Máy lạnh theo lịch",
+    description:
+      "Bật máy lạnh E1 trước giờ học từ file lịch và xem nhật ký trực tiếp.",
+    icon: Snowflake,
   },
 ];
 

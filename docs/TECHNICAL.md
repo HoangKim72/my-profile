@@ -13,7 +13,7 @@
 |---|---|---|
 | **Public site** | Giới thiệu bản thân, CV, skills có bằng chứng, kho tài liệu, liên hệ | `/`, `/about`, `/cv`, `/skills`, `/projects`, `/contact` |
 | **Dashboard** | Admin quản trị profile công khai và kho tài liệu | `/dashboard/**` |
-| **Tools** | Công cụ dùng thật, hiện phục vụ công việc cá nhân của chủ site | `/tools/mic-filter` |
+| **Tools** | Công cụ dùng thật, hiện phục vụ công việc cá nhân của chủ site | `/tools/mic-filter`, `/tools/speed-test`, `/tools/ac` |
 
 Quy ước nghiệp vụ đã chốt:
 
@@ -56,6 +56,7 @@ app/
     profile/avatar/             # POST upload avatar (admin)
     projects/[id]/archive/      # POST upload ZIP
     projects/[id]/download/     # GET  tải ZIP
+    ac-agent/                   # plan, jobs/[id], events: API cho agent máy lạnh trong LAN
 src/
   middleware.ts                 # Rate limit toàn cục, chặn /dashboard, security headers
   actions/                      # Server Actions: auth, projects, profile, contact
@@ -85,10 +86,12 @@ src/
                                 #   constants (giá trị mặc định)
                                 #   session (localStorage)
                                 #   export (bảng trưa cho ảnh)
+  tools/ac-scheduler/           # Logic thuần của tool máy lạnh: parser, plan (quy tắc), units (CSV), config, view
   tools/speed-test/             # Logic thuần của tool tốc độ mạng:
                                 #   config (danh sách phép đo, giới hạn dữ liệu)
                                 #   format (Mbps, ms), quality (đánh giá, văn bản sao chép)
   lib/tools/mic-filter-settings.ts # Đọc cấu hình tool mic từ DB (server-only)
+  lib/tools/ac-scheduler.ts     # Cấu hình, quyền, log, token agent của tool máy lạnh (server-only)
   types/index.ts                # Kiểu dùng chung
 prisma/
   schema.prisma, seed.ts
@@ -381,6 +384,37 @@ Công cụ công khai, không cần đăng nhập. Spec: `docs/superpowers/specs
 - **Giới hạn dữ liệu** (`src/tools/speed-test/config.ts`): bỏ các lượt 50/100/250 MB của cấu hình mặc định; tối đa ≈ 99 MB tải xuống + 47 MB tải lên. Mạng chậm dùng ít hơn vì thư viện dừng tăng kích thước khi một lượt ≥ 1 giây.
 - **Không đo mất gói** (cần TURN server riêng). Thư viện tính mất gói chưa đo là 0 điểm AIM, nên `rescoreAssumingNoPacketLoss()` cộng lại 10 điểm và xếp loại lại theo ngưỡng của thư viện; giao diện ghi rõ giả định này. **Khi nâng cấp thư viện phải kiểm tra lại ngưỡng** trong `quality.ts`.
 - **Giao diện** (`SpeedTestTool`): trạng thái `idle → loading → running ⇄ paused → done | error`; 4 ô Tải xuống / Tải lên / Ping / Độ dao động cập nhật trực tiếp; đánh giá Xem video / Chơi game / Gọi video (Tốt / Khá / Kém); Đo lại dùng `restart()` trên cùng một engine; rời trang thì `pause()`; vùng `aria-live` chỉ báo khi một hạng mục đo xong.
+
+### 7.8. Máy lạnh theo lịch (`/tools/ac`, từ `2026-10-19`)
+
+Bật máy lạnh **toà E1** theo file lịch học hằng ngày: bật trước giờ học `leadMinutes` (20) phút, tắt đúng giờ kết thúc. Web chỉ lập kế hoạch; **agent Python trong LAN trường** (`agent/ac-agent/`, xem README ở đó) mới điều khiển iTM, vì Vercel không gọi được `192.168.91.x`.
+
+**Luồng:** người có quyền chọn file → trình duyệt đọc file (`readAcScheduleFile`) và xem trước (`buildAcPlan`) → bấm **Kích hoạt** gửi các dòng (không gửi file) cho `activateAcSchedule` → server tính lại kế hoạch bằng giờ server và danh sách máy trong DB → tạo `ac_jobs` (mỗi khung 1 lệnh ON + 1 lệnh OFF) → agent hỏi `/api/ac-agent/plan` mỗi 30s → "nhận" lệnh (`RUNNING`, compare-and-set) → gửi iTM → báo `DONE/SKIPPED/FAILED` → `ac_events` → trang cập nhật qua Supabase Realtime.
+
+**Quy tắc** (`src/tools/ac-scheduler/plan.ts`; agent có bản Python giống hệt cho phần bật trễ):
+
+- file phải đủ cột Mã phòng, Ngày học, Thời gian bắt đầu, Thời gian kết thúc, Ghi chú; mọi dòng cùng **một ngày = hôm nay** (UTC+7), không thì từ chối cả file
+- chỉ dòng `E1-xx.yy(/n)`; dòng E1 sai giờ, giờ ngược hoặc ngoài 06:00–22:00 → từ chối cả file
+- ghi chú chứa "bao nghi" (bỏ dấu) → bỏ dòng đó; ghi chú lạ khác → cảnh báo vàng, vẫn chạy; "khong phat mic" không ảnh hưởng
+- phòng không có máy trong `ac_units.roomCodes` → không bật (vd sân bóng chuyền `E1-12.01/*`)
+- ca của cùng **một máy** cách nhau ≤ `leadMinutes` được gộp, máy chạy liên tục
+- quá `maxConcurrentUnits` máy chạy cùng lúc → cần tick xác nhận
+- `classifyTurnOn`: chưa tới giờ bật → chờ; trễ nhưng còn ≥ `minRemainingMinutes` → bật ngay; còn ít hơn → bỏ qua (lệnh tạo sẵn ở trạng thái `SKIPPED`)
+- kích hoạt lại cùng ngày: lịch cũ `SUPERSEDED`, lệnh chờ bị huỷ, **trừ lệnh tắt của máy đã bật** (chuyển sang lịch mới, hoặc huỷ nếu lịch mới vẫn dùng máy lúc đó). Huỷ lịch cũng giữ các lệnh tắt này
+
+**Cấu hình** (`tool_settings` key `ac-scheduler`, `acSchedulerConfigSchema`): `leadMinutes`, `minRemainingMinutes`, `maxConcurrentUnits`, `paused` (dừng khẩn cấp), `dryRun` (**mặc định bật**: agent chỉ ghi log). Đọc lỗi → trả về cấu hình mặc định với `paused: true`.
+
+**Quyền:** mọi user đăng nhập xem trang/log (RLS `SELECT` cho `authenticated`). Nhập, kích hoạt, huỷ, dừng khẩn cấp cần admin hoặc role `ac_operator` (`canOperateAc`). Bật lại sau dừng khẩn cấp, cấu hình, danh sách máy, cấp quyền, token agent: chỉ admin (`/dashboard/tools/ac`).
+
+**API cho agent** (`Authorization: Bearer <token>`, `ac_agents.tokenHash` = SHA-256):
+
+| Route | Việc |
+|---|---|
+| `GET /api/ac-agent/plan` | lệnh `PENDING/RUNNING` của hôm nay (máy đang bật), cấu hình, giờ server; cập nhật `lastSeenAt` (agent "online" nếu < 90s) |
+| `POST /api/ac-agent/jobs/[id]` | đổi trạng thái theo bảng chuyển hợp lệ; `RUNNING` bị từ chối (409) khi đang dừng, khác ngày, máy bị tắt; có `isRunning` thì cập nhật `ac_units` |
+| `POST /api/ac-agent/events` | log tự do của agent |
+
+**Bảng:** `ac_units` (ip, tầng iTM, `unitIndex`, tên, `roomCodes`, trạng thái cuối), `ac_schedules`, `ac_jobs`, `ac_events`, `ac_agents`. Migration `20261019000000_ac_scheduler` bật RLS cho cả 5 bảng và thêm `ac_units`, `ac_jobs`, `ac_events` vào publication `supabase_realtime`.
 
 ---
 

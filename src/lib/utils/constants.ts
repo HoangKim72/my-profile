@@ -27,5 +27,6 @@ export const ADMIN_NAV_LINKS: Array<{
   { href: "/dashboard", label: "Tổng quan" },
   { href: "/dashboard/projects", label: "Kho tài liệu" },
   { href: "/dashboard/tools/mic-filter", label: "Tool lọc mic", adminOnly: true },
+  { href: "/dashboard/tools/ac", label: "Máy lạnh", adminOnly: true },
   { href: "/dashboard/settings", label: "Cài đặt", adminOnly: true },
 ];

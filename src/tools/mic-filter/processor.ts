@@ -360,7 +360,7 @@ function buildMicFilterReport(
   };
 }
 
-function normalizeHeaderLabel(value: unknown) {
+export function normalizeHeaderLabel(value: unknown) {
   return String(value ?? "")
     .trim()
     .replace(/\s+/g, " ")
@@ -377,17 +377,17 @@ function getCellValue(
   return index === undefined ? null : row[index];
 }
 
-function isBlankCell(value: unknown) {
+export function isBlankCell(value: unknown) {
   return value === null || value === undefined || String(value).trim() === "";
 }
 
-function toNullableText(value: unknown) {
+export function toNullableText(value: unknown) {
   const text = String(value ?? "").trim();
 
   return text.length === 0 ? null : text;
 }
 
-function normalizeSearchableText(value: string | null | undefined) {
+export function normalizeSearchableText(value: string | null | undefined) {
   return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -411,7 +411,7 @@ function normalizeRoomCode(value: unknown) {
   return roomCode?.toUpperCase() ?? null;
 }
 
-function parseDateKey(value: unknown): string | null {
+export function parseDateKey(value: unknown): string | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return toDateKey(value);
   }
@@ -455,7 +455,7 @@ function parseDateKey(value: unknown): string | null {
   return null;
 }
 
-function parseTimeToMinutes(value: unknown): number | null {
+export function parseTimeToMinutes(value: unknown): number | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.getHours() * 60 + value.getMinutes();
   }

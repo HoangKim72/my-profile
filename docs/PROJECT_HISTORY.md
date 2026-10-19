@@ -628,6 +628,44 @@ Kiểm tra:
 - unit test 11 test mới; `npm run lint`, `npm test`, `next build` pass
 - đo thật trên dev server: bấm đúp chỉ tạo một lượt đo; Dừng / Tiếp tục / Đo lại / Sao chép hoạt động; đếm request: 92 request, lượt tải xuống lớn nhất 25 MB, tổng 99 MB xuống + 47 MB lên, 0 request `__results`; 375px tối và 1024px sáng không tràn ngang; rời trang khi đang đo không lỗi console
 
+### `2026-10-19`
+
+#### Máy lạnh theo lịch (`/tools/ac`) và agent trong LAN
+
+Bối cảnh: hằng ngày quản lý toà nhà gửi file lịch học (.xlsx) vào group. Tool đọc lịch, **bật máy lạnh E1 trước giờ học 20 phút, tắt đúng giờ kết thúc**, có log realtime. Phục vụ lúc người trực đi trễ hoặc quản lý muốn bật trước. Máy lạnh điều khiển qua web Daikin iTM trong LAN (`192.168.91.x`), đã có `itm_client.py` (đăng nhập đã chạy thật, bật/tắt chưa).
+
+Chủ dự án chốt:
+
+- chỉ nhận lịch **đúng ngày hôm nay** (giờ server, UTC+7)
+- dùng tool trễ: **bật ngay nếu còn ≥ 30 phút** trước giờ kết thúc, ít hơn thì bỏ qua
+- agent chạy trên **PC luôn bật trong LAN trường**
+- **mọi user đăng nhập** được xem log; nhập/kích hoạt cần quyền `ac_operator` do admin cấp (vì `/register` đang mở)
+
+Kiến trúc: Vercel không gọi được IP nội bộ, nên **agent Python trong LAN** (`agent/ac-agent/`) tự hỏi web mỗi 30s (`/api/ac-agent/plan`, token riêng, chỉ lưu hash), điều khiển iTM, báo kết quả. Log và trạng thái máy đẩy lên trang bằng **Supabase Realtime** (không đổi stack, không cần Vercel Cron).
+
+Đã làm:
+
+- `src/tools/ac-scheduler/`: đọc file (tái dùng bộ đọc ô của tool mic), lọc E1, kiểm tra ngày/giờ, bỏ dòng "Đã báo nghỉ" (không coi "Khong phat mic" là nghỉ), ghép phòng ↔ máy, **gộp ca liền nhau theo từng máy**, đếm số máy chạy cùng lúc, quy tắc bật trễ; nhập danh sách máy dạng CSV từ `phong_map.csv`
+- Prisma: `ac_units`, `ac_schedules`, `ac_jobs`, `ac_events`, `ac_agents` + migration `20261019000000_ac_scheduler` (bật RLS, policy đọc cho `authenticated`, thêm vào publication `supabase_realtime`)
+- server actions `src/actions/ac.ts`: kích hoạt (server tự tính lại kế hoạch, thay lịch cũ nhưng **giữ lệnh tắt của máy đã bật**), huỷ lịch/lệnh, dừng khẩn cấp (ai có quyền cũng dừng được, chỉ admin bật lại), cấu hình, danh sách máy, cấp quyền, token agent
+- trang `/tools/ac` (nhập → xem trước → kích hoạt, lệnh hôm nay, nhật ký realtime, trạng thái máy) và `/dashboard/tools/ac` (admin)
+- agent: `agent.py` kiểm tra lại trước mỗi lệnh (đồng hồ lệch, ngày, tạm dừng, E1, bật trễ, không tắt khi sắp có ca), "nhận" lệnh trước khi gửi, thử lại 3 lần, gửi lần lượt; `ITM_FAKE=1` để thử không cần LAN; `itm_client.py` v0.11 trả về `confirmed/unconfirmed/already`
+- **Chạy thử bật sẵn** (`dryRun: true`): agent chỉ ghi log cho tới khi admin tắt
+
+Kiểm tra:
+
+- `npm test` 96 test (22 test mới, có test với chính file `201026.xlsx`), `npm run lint`, `tsc` pass; agent `python -m unittest test_agent` 10 test pass
+- đã áp migration lên Supabase; kiểm tra RLS bật cho 5 bảng, policy đọc và publication Realtime cho `ac_units/ac_jobs/ac_events`
+- chạy thật agent `ITM_FAKE=1` với dev server và lịch thử ngày 19/10: khung đã quá muộn bị bỏ qua, khung trễ 23 phút được bật ngay (chạy thử chỉ ghi log), tắt chạy thử thì máy giả được bật và báo về; dừng khẩn cấp làm server từ chối nhận lệnh (409), token sai bị chặn (401). Lần đầu dev server khởi động, Prisma hết kết nối pool (`connection_limit=1`) nên `/plan` lỗi 500, agent vẫn sống và tự chạy tiếp khi DB hết chậm. Dữ liệu thử đã xoá hết
+
+Việc còn treo:
+
+- **giao diện `/tools/ac` và `/dashboard/tools/ac` chưa xem trên trình duyệt** (cần đăng nhập admin): luồng nhập file → xem trước → kích hoạt, log realtime trên trang, form admin
+- cần bảng ánh xạ thật phòng ↔ máy (module lầu 4/10 `E1-04.05/1` → `E1-04-01`?), chạy `quet` để có `phong_map.csv`
+- bật/tắt qua iTM **chưa chạy thật**: làm theo các bước trong `agent/ac-agent/README.md` (chạy thử → 1 máy có người xem → mở rộng)
+- xin phép quản lý toà nhà/IT trước khi đặt agent
+- tuỳ chọn chưa làm: quét tắt cuối ngày các máy do tool bật
+
 ## 9. Sơ đồ hiểu nhanh dự án
 
 ### Lớp public
